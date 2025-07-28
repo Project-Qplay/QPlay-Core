@@ -41,12 +41,12 @@ const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
   // For showing rank title based on mastery level
-  const getQuantumRank = (level: number) => {
-    if (level >= 10) return "Quantum Grandmaster";
-    if (level >= 7) return "Quantum Pilot";
-    if (level >= 4) return "Qubit Wrangler";
-    return "Quantum Apprentice";
-  };
+  // const getQuantumRank = (level: number) => {
+  //   if (level >= 10) return "Quantum Grandmaster";
+  //   if (level >= 7) return "Quantum Pilot";
+  //   if (level >= 4) return "Qubit Wrangler";
+  //   return "Quantum Apprentice";
+  // };
 
   const { user, signOut } = useAuth();
 
@@ -252,9 +252,9 @@ const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
                 </div>
                 <div className="text-sm text-gray-400">Mastery Level</div>
               </div>
-              <div className="text-xs text-yellow-400 italic mt-1">
+{/*               <div className="text-xs text-yellow-400 italic mt-1">
   {getQuantumRank(user.quantum_mastery_level)}
-</div>
+</div> */}
               <div className="p-4 bg-gray-800/30 rounded-xl border border-gray-700">
                 <div className="text-2xl font-bold text-yellow-400">
                   {user.best_completion_time
