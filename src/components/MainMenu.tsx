@@ -216,22 +216,6 @@ const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
         </button>
       </div>
 
-      {/* Controls overlay */}
-      <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 backdrop-blur-sm p-3 rounded-xl border border-gray-700 z-10 text-white text-sm">
-        <h3 className="font-bold mb-2">Spaceship Controls</h3>
-        <div className="grid grid-cols-2 gap-2">
-          <div>W - Forward</div>
-          <div>S - Backward</div>
-          <div>A - Left</div>
-          <div>D - Right</div>
-          <div>Space - Up</div>
-          <div>Shift - Down</div>
-        </div>
-        <p className="mt-2 text-xs text-cyan-300">
-          Press Enter near a portal to interact with it
-        </p>
-      </div>
-
       {/* Modals - these appear ddon top of the 3D scene */}
       {showGuide && <QuantumGuide onClose={() => setShowGuide(false)} />}
       {showAchievements && (
