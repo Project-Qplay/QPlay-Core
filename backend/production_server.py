@@ -841,7 +841,7 @@ def unlock_achievement():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
+        
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8000))
     debug = os.environ.get("DEBUG", "False").lower() == "true"
@@ -851,5 +851,6 @@ if __name__ == '__main__':
     print(f"📡 REST API URL: {SUPABASE_REST_URL}")
     print("✅ All endpoints configured for frontend integration")
 
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    app.run(host='0.0.0.0', port=port, debug=debug) 
+
 
