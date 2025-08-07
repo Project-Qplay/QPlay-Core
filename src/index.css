@@ -3,6 +3,24 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Animation for quantum teleportation dots */
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+.loading-dots span {
+    animation: fadeInOut 1.5s infinite;
+    display: inline-block;
+}
+
 /* CSS Custom Properties for theming */
 :root {
     --animation-duration: 0.3s;
