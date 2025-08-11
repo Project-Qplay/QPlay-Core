@@ -14,14 +14,12 @@ import { useGame } from "../../contexts/GameContext";
 import { motion, AnimatePresence } from "framer-motion";
 import FeedbackButton from "../FeedbackButton";
 
-
 const DICE_FACE_COUNT = 6;
 const ROLL_COUNT = 50;
 const ROLL_DELAY_MS = 40;
 
 const DICE_ICONS = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
 const LOCKER_NUMBERS = Array.from({ length: DICE_FACE_COUNT }, (_, i) => i + 1);
-
 
 const ProbabilityBay: React.FC = () => {
   const { completeRoom, logQuantumMeasurement } = useGame();
@@ -30,45 +28,48 @@ const ProbabilityBay: React.FC = () => {
   const [measurements, setMeasurements] = useState<number[]>([]);
   const [isRolling, setIsRolling] = useState(false);
   const [selectedLocker, setSelectedLocker] = useState<number | null>(null);
-  const [lockerCode, setLockerCode] = useState("");
   const [showHistogram, setShowHistogram] = useState(false);
   const [decoySolved, setDecoySolved] = useState(false);
   const [roomCompleted, setRoomCompleted] = useState(false);
   const [roomStartTime] = useState(Date.now());
   const [attempts, setAttempts] = useState(0);
+  const [correctLocker, setCorrectLocker] = useState<number | null>(null);
 
-const rollQuantumDice = () => {
-  if (!rollQuantumDice.weights) {
-    const rawWeights = Array.from({ length: DICE_FACE_COUNT }, () => Math.random());
-    const total = rawWeights.reduce((sum, w) => sum + w, 0);
-    rollQuantumDice.weights = rawWeights.map((w) => w / total);
-  }
+  const rollQuantumDice = () => {
+    if (!rollQuantumDice.weights) {
+      const rawWeights = Array.from({ length: DICE_FACE_COUNT }, () =>
+        Math.random(),
+      );
+      const total = rawWeights.reduce((sum, w) => sum + w, 0);
+      rollQuantumDice.weights = rawWeights.map((w) => w / total);
+    }
 
-  const weights = rollQuantumDice.weights;
-  const random = Math.random();
-  let sum = 0;
+    const weights = rollQuantumDice.weights;
+    const random = Math.random();
+    let sum = 0;
 
-  for (let i = 0; i < weights.length; i++) {
-    sum += weights[i];
-    if (random < sum) return i + 1;
-  }
-  return DICE_FACE_COUNT;
-};
-rollQuantumDice.weights = null as number[] | null;
-
+    for (let i = 0; i < weights.length; i++) {
+      sum += weights[i];
+      if (random < sum) return i + 1;
+    }
+    return DICE_FACE_COUNT;
+  };
+  rollQuantumDice.weights = null as number[] | null;
 
   const performMeasurements = async () => {
     setIsRolling(true);
     setMeasurements([]);
+    setDecoySolved(false);
+    setSelectedLocker(null);
     rollQuantumDice.weights = null;
     const newMeasurements: number[] = [];
 
-  for (let i = 0; i < ROLL_COUNT; i++) {
-   await new Promise((resolve) => setTimeout(resolve, ROLL_DELAY_MS));
-   const result = rollQuantumDice();
-   newMeasurements.push(result);
-   setMeasurements([...newMeasurements]);
-}
+    for (let i = 0; i < ROLL_COUNT; i++) {
+      await new Promise((resolve) => setTimeout(resolve, ROLL_DELAY_MS));
+      const result = rollQuantumDice();
+      newMeasurements.push(result);
+      setMeasurements([...newMeasurements]);
+    }
 
     setIsRolling(false);
     setShowHistogram(true);
@@ -97,30 +98,37 @@ rollQuantumDice.weights = null as number[] | null;
     return counts;
   };
 
-
   const getExpectedLockerCode = (histogram: number[]): string => {
-  const max = Math.max(...histogram);
-  const tied = histogram.map((c, i) => (c === max ? i : -1)).filter(i => i !== -1);
-  const index = tied[Math.floor(Math.random() * tied.length)];
-  return (index + 1).toString();
-};
+    const max = Math.max(...histogram);
+    const tied = histogram
+      .map((c, i) => (c === max ? i : -1))
+      .filter((i) => i !== -1);
+    const index = tied[Math.floor(Math.random() * tied.length)];
+    return (index + 1).toString();
+  };
 
-const calculateScore = (attempts: number, time: number): number => {
-  const BASE = 1000;
-  const ATTEMPT_PENALTY = 100;
-  const TIME_PENALTY = Math.floor(time / 1000);
-  return Math.max(BASE - (attempts - 1) * ATTEMPT_PENALTY - TIME_PENALTY, 100);
-};
+  const calculateScore = (attempts: number, time: number): number => {
+    const BASE = 1000;
+    const ATTEMPT_PENALTY = 100;
+    const TIME_PENALTY = Math.floor(time / 1000);
+    return Math.max(
+      BASE - (attempts - 1) * ATTEMPT_PENALTY - TIME_PENALTY,
+      100,
+    );
+  };
 
-const checkLockerCode = async () => {
-  setAttempts((prev) => prev + 1);
+  const checkLocker = async (lockerNumber: number) => {
+    setAttempts((prev) => prev + 1);
+    setSelectedLocker(lockerNumber);
 
-  const histogramData = getHistogramData();
-  const expectedCode = getExpectedLockerCode(histogramData);
+    const histogramData = getHistogramData();
+    const expectedCode = getExpectedLockerCode(histogramData);
+    const correctLockerNumber = parseInt(expectedCode);
 
-  if (lockerCode === expectedCode) {
-    setDecoySolved(true);
-    if (selectedLocker === parseInt(expectedCode)) {
+    // Store the correct locker for display purposes
+    setCorrectLocker(correctLockerNumber);
+
+    if (lockerNumber === correctLockerNumber) {
       setRoomCompleted(true);
 
       const completionTime = Date.now() - roomStartTime;
@@ -131,10 +139,10 @@ const checkLockerCode = async () => {
         attempts: attempts,
         score: score,
       });
+    } else {
+      setDecoySolved(true);
     }
-  }
-};
-
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900/20 to-cyan-900/20 p-6">
@@ -178,22 +186,21 @@ const checkLockerCode = async () => {
                     🎮 Step-by-Step
                   </h3>
                   <ol className="text-purple-200 text-sm list-decimal list-inside space-y-1">
-                    <li>Click “Perform Measurements” to roll 50 times</li>
+                    <li>Click "Perform Measurements" to roll 50 times</li>
                     <li>View the histogram of results</li>
-                    <li>Choose the most frequent number</li>
-                    <li>Click a locker and enter the number</li>
-                    <li>Avoid decoys! Only one locker is correct</li>
+                    <li>Identify the most frequent number</li>
+                    <li>Click on the locker with that number to unlock it</li>
                   </ol>
                 </div>
 
                 <div className="bg-red-900/30 border border-red-500 rounded-xl p-4">
                   <h3 className="font-semibold text-red-300 mb-2">
-                    ⚠️ Decoy Warning
+                    ⚠️ Quantum Analysis
                   </h3>
                   <p className="text-red-200 text-sm">
-                    Some lockers accept the right number but are false
-                    positives. Only the true quantum locker will complete the
-                    room.
+                    The quantum dice have biased probabilities. Your task is to
+                    identify which number appears most frequently and select the
+                    matching locker.
                   </p>
                 </div>
               </div>
@@ -330,23 +337,25 @@ const checkLockerCode = async () => {
             </h2>
 
             <p className="text-gray-300 mb-6">
-              Analyze the histogram to identify the dominant quantum outcome.
-              Enter the value in the correct locker to stabilize the system.
+              Analyze the histogram to identify the most frequent outcome. Click
+              on that locker to stabilize the quantum system.
             </p>
 
             <div className="grid grid-cols-3 gap-4 mb-6">
               {LOCKER_NUMBERS.map((locker) => (
                 <div
                   key={locker}
-                  onClick={() => setSelectedLocker(locker)}
-                  className={`p-4 rounded-xl border transition-all duration-300 cursor-pointer ${
+                  onClick={() =>
+                    showHistogram && !roomCompleted && setSelectedLocker(locker)
+                  }
+                  className={`p-4 rounded-xl border transition-all duration-300 ${showHistogram && !roomCompleted ? "cursor-pointer" : "cursor-default"} ${
                     selectedLocker === locker
                       ? "border-4 border-blue-400 bg-blue-100 shadow-xl ring-2 ring-blue-300 ring-offset-2 animate-pulse text-black"
                       : "border-gray-600 bg-gray-800/50 hover:bg-gray-700/50"
                   }`}
                 >
                   <div className="text-center">
-                    {roomCompleted && locker === parseInt(lockerCode) ? (
+                    {roomCompleted && locker === correctLocker ? (
                       <Unlock className="w-8 h-8 mx-auto text-green-400 animate-pulse" />
                     ) : (
                       <Lock className="w-8 h-8 mx-auto text-gray-400" />
@@ -358,36 +367,35 @@ const checkLockerCode = async () => {
             </div>
 
             <div className="space-y-4">
-              <select
-                value={lockerCode}
-                onChange={(e) => setLockerCode(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl focus:border-blue-400 focus:outline-none transition-colors duration-200"
-              >
-                <option value="" disabled>
-                  Select a quantum code...
-                </option>
-                {LOCKER_NUMBERS.map((code) => (
-                  <option key={code} value={code}>
-                    {code}
-                  </option>
-                ))}
-              </select>
+              {!showHistogram && (
+                <div className="p-4 bg-blue-900/30 border border-blue-500 rounded-xl text-center">
+                  <p className="text-blue-300 font-semibold">
+                    📊 Run measurements first
+                  </p>
+                  <p className="text-blue-200 text-sm mt-2">
+                    Perform quantum measurements to see probability
+                    distribution.
+                  </p>
+                </div>
+              )}
 
-              <button
-                onClick={checkLockerCode}
-                disabled={!selectedLocker || !lockerCode}
-                className="w-full px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold transition-all duration-300"
-              >
-                Attempt Unlock
-              </button>
+              {showHistogram && !roomCompleted && (
+                <button
+                  onClick={() => selectedLocker && checkLocker(selectedLocker)}
+                  disabled={!selectedLocker}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold transition-all duration-300"
+                >
+                  Attempt Unlock
+                </button>
+              )}
             </div>
 
             {decoySolved && !roomCompleted && (
               <div className="mt-6 p-4 bg-red-900/30 border border-red-500 rounded-xl">
-                <p className="text-red-300 font-semibold">⚠️ Decoy Detected!</p>
+                <p className="text-red-300 font-semibold">⚠️ Wrong Locker!</p>
                 <p className="text-red-200 text-sm mt-2">
-                  This locker accepted the code but wasn't aligned with the full
-                  interference pattern. Think deeper!
+                  This locker doesn't match the dominant quantum signature. Try
+                  again!
                 </p>
               </div>
             )}
@@ -401,8 +409,8 @@ const checkLockerCode = async () => {
                   You've stabilized the probability field by uncovering the
                   hidden quantum structure!
                 </p>
-                <FeedbackButton 
-                  roomId="probability-bay" 
+                <FeedbackButton
+                  roomId="probability-bay"
                   className="w-full sm:w-auto"
                 />
               </div>
