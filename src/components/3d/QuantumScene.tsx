@@ -4,6 +4,7 @@ import { Stars, Html } from "@react-three/drei";
 import * as THREE from "three";
 import Spaceship from "./Spaceship";
 import LoadingScreen from "./LoadingScreen";
+import { QuantumUtils } from "../../utils/three-compatibility"; // Import quantum utilities
 
 // Floating platform component
 const QuantumPlatform = ({
@@ -222,6 +223,11 @@ interface QuantumSceneProps {
   onNavigate?: (destination: string) => void;
 }
 
+// Define the ref interface for external function access
+export interface QuantumDashboardRef {
+  completeRoom: (roomId: string) => void;
+}
+
 // Simplified camera component that follows the spaceship
 const SpaceshipCamera: React.FC<{
   position: THREE.Vector3;
@@ -240,13 +246,17 @@ const SpaceshipCamera: React.FC<{
   return null;
 };
 
-export const QuantumDashboard: React.FC<QuantumSceneProps> = ({
-  onNavigate,
-}) => {
+export const QuantumDashboard = React.forwardRef<
+  QuantumDashboardRef,
+  QuantumSceneProps
+>(({ onNavigate }, ref) => {
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingPhase, setLoadingPhase] = useState<
+    "init" | "resources" | "complete"
+  >("init");
   const [spaceshipPosition, setSpaceshipPosition] = useState<THREE.Vector3>(
-    new THREE.Vector3(0, 3, 20), // Start higher up and farther back
+    new THREE.Vector3(0, 3, 12), // Start position with good view of all portals
   );
   const [spaceshipRotation, setSpaceshipRotation] = useState<THREE.Euler>(
     new THREE.Euler(0, 0, 0),
@@ -257,9 +267,9 @@ export const QuantumDashboard: React.FC<QuantumSceneProps> = ({
     z: 0,
   });
   const [activePortal, setActivePortal] = useState<string | null>(null);
-  const [currentRoom, setCurrentRoom] = useState<number>(0); // Start in the main hub (Room 0)
-  const [unlockedRooms, setUnlockedRooms] = useState<number[]>([0]); // Only main hub is unlocked initially
   const [transitioning, setTransitioning] = useState<boolean>(false);
+  const [completedRooms, setCompletedRooms] = useState<string[]>([]); // Track completed rooms
+  const [currentQuest, setCurrentQuest] = useState<string>("room1"); // Start with room1 as first quest
 
   // Controls state
   const keys = useRef({
@@ -271,25 +281,34 @@ export const QuantumDashboard: React.FC<QuantumSceneProps> = ({
     down: false,
   });
 
-  // Simplified loading sequence
+  // Enhanced loading sequence with phases
   useEffect(() => {
-    // Start at 0
+    // Start at 0 - Initialization phase
     setLoadingProgress(0);
+    setLoadingPhase("init");
 
-    // Quick progress to 70%
+    // Progress to 40% - Initial setup
     const timer1 = setTimeout(() => {
-      setLoadingProgress(70);
+      setLoadingProgress(40);
     }, 500);
 
-    // Finish loading after resources are likely ready
+    // Progress to 70% - Loading resources phase
     const timer2 = setTimeout(() => {
+      setLoadingProgress(70);
+      setLoadingPhase("resources");
+    }, 1000);
+
+    // Complete loading - Final phase
+    const timer3 = setTimeout(() => {
       setLoadingProgress(100);
-      setTimeout(() => setLoading(false), 300);
-    }, 1500);
+      setLoadingPhase("complete");
+      setTimeout(() => setLoading(false), 500);
+    }, 2000);
 
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
+      clearTimeout(timer3);
     };
   }, []);
 
@@ -349,81 +368,68 @@ export const QuantumDashboard: React.FC<QuantumSceneProps> = ({
   useEffect(() => {
     if (!spaceshipPosition) return;
 
-    // Define portal positions for different rooms in 3D space
-    // Each room is in a different area of 3D space
-    const portalsByRoom: {
-      [key: string]: Array<{
-        id: string;
-        position: THREE.Vector3;
-        room: number;
-        targetRoom?: number;
-      }>;
-    } = {
-      // Main hub - starting room (Room 0)
-      main: [
-        { id: "play", position: new THREE.Vector3(8, 2, -10), room: 0 },
-        { id: "leaderboard", position: new THREE.Vector3(-8, 2, -10), room: 0 },
-        { id: "guide", position: new THREE.Vector3(0, 2, -15), room: 0 },
-        {
-          id: "room1",
-          position: new THREE.Vector3(0, 6, -8),
-          room: 0,
-          targetRoom: 1,
-        }, // Portal to Room 1
-      ],
-      // Room 1 - first unlocked room (positioned higher in space)
-      room1: [
-        {
-          id: "achievements",
-          position: new THREE.Vector3(12, 10, -5),
-          room: 1,
-        },
-        {
-          id: "room0",
-          position: new THREE.Vector3(0, 10, 0),
-          room: 1,
-          targetRoom: 0,
-        }, // Portal back to main hub
-        {
-          id: "room2",
-          position: new THREE.Vector3(-8, 10, -10),
-          room: 1,
-          targetRoom: 2,
-        }, // Portal to Room 2
-      ],
-      // Room 2 - second unlocked room (positioned to the left and deeper in space)
-      room2: [
-        { id: "settings", position: new THREE.Vector3(-20, 2, -20), room: 2 },
-        {
-          id: "room1",
-          position: new THREE.Vector3(-12, 2, -15),
-          room: 2,
-          targetRoom: 1,
-        }, // Portal back to Room 1
-      ],
-    };
+    // Define all portals in the main hub
+    const portalPositions: Array<{
+      id: string;
+      position: THREE.Vector3;
+      available: boolean; // Whether this portal should be visible
+    }> = [
+      { id: "play", position: new THREE.Vector3(0, 2, -5), available: true }, // Center front - always available
+      {
+        id: "leaderboard",
+        position: new THREE.Vector3(-24, 2, -2),
+        available: true,
+      }, // Left
+      { id: "guide", position: new THREE.Vector3(-12, 2, -4), available: true }, // Left-center
+      {
+        id: "settings",
+        position: new THREE.Vector3(12, 2, -4),
+        available: true,
+      }, // Right-center
+      {
+        id: "achievements",
+        position: new THREE.Vector3(24, 2, -2),
+        available: true,
+      }, // Right
 
-    // Flatten the active portals based on unlocked rooms
-    const activePortals = [];
+      // Room completion portals - initially not visible until completed
+      {
+        id: "room1",
+        position: new THREE.Vector3(-28, 2, 0),
+        available: completedRooms.includes("room1"),
+      },
+      {
+        id: "room2",
+        position: new THREE.Vector3(-14, 2, 2),
+        available: completedRooms.includes("room2"),
+      },
+      {
+        id: "room3",
+        position: new THREE.Vector3(0, 2, 3),
+        available: completedRooms.includes("room3"),
+      },
+      {
+        id: "room4",
+        position: new THREE.Vector3(14, 2, 2),
+        available: completedRooms.includes("room4"),
+      },
+      {
+        id: "room5",
+        position: new THREE.Vector3(28, 2, 0),
+        available: completedRooms.includes("room5"),
+      },
+    ];
 
-    // Always show the main hub portals
-    activePortals.push(...portalsByRoom.main);
-
-    // Add room 1 portals if unlocked
-    if (unlockedRooms.includes(1)) {
-      activePortals.push(...portalsByRoom.room1);
-    }
-
-    // Add room 2 portals if unlocked
-    if (unlockedRooms.includes(2)) {
-      activePortals.push(...portalsByRoom.room2);
-    }
+    // Filter to only available portals
+    const availablePortals = portalPositions.filter(
+      (portal) => portal.available,
+    );
 
     // Find closest portal
     let closestPortalId: string | null = null;
-    let closestDistance = 3; // Minimum distance to trigger interaction
+    let closestDistance = 5; // Increased minimum distance for widely spaced portals
 
-    activePortals.forEach((portal) => {
+    availablePortals.forEach((portal) => {
       const distance = portal.position.distanceTo(spaceshipPosition);
       if (distance < closestDistance) {
         closestDistance = distance;
@@ -437,57 +443,14 @@ export const QuantumDashboard: React.FC<QuantumSceneProps> = ({
     let stationaryTimer: NodeJS.Timeout | null = null;
     let portalActivationInProgress = false;
 
-    // Find the active portal details from flattened portal list
-    const allPortals: Array<{
-      id: string;
-      position: THREE.Vector3;
-      room: number;
-      targetRoom?: number;
-    }> = [
-      // Main hub portals
-      { id: "play", position: new THREE.Vector3(8, 2, -10), room: 0 },
-      { id: "leaderboard", position: new THREE.Vector3(-8, 2, -10), room: 0 },
-      { id: "guide", position: new THREE.Vector3(0, 2, -15), room: 0 },
-      {
-        id: "room1",
-        position: new THREE.Vector3(0, 6, -8),
-        room: 0,
-        targetRoom: 1,
-      },
-
-      // Room 1 portals
-      { id: "achievements", position: new THREE.Vector3(12, 10, -5), room: 1 },
-      {
-        id: "room0",
-        position: new THREE.Vector3(0, 10, 0),
-        room: 1,
-        targetRoom: 0,
-      },
-      {
-        id: "room2",
-        position: new THREE.Vector3(-8, 10, -10),
-        room: 1,
-        targetRoom: 2,
-      },
-
-      // Room 2 portals
-      { id: "settings", position: new THREE.Vector3(-20, 2, -20), room: 2 },
-      {
-        id: "room1",
-        position: new THREE.Vector3(-12, 2, -15),
-        room: 2,
-        targetRoom: 1,
-      },
-    ];
-
-    const activePortalDetails = allPortals.find(
+    const activePortalDetails = availablePortals.find(
       (portal) => portal.id === closestPortalId,
     );
 
     // If very close to a portal and nearly stationary, start timer
     if (
       closestPortalId &&
-      closestDistance < 2 &&
+      closestDistance < 4 &&
       Math.abs(spaceshipVelocity.x) < 0.2 &&
       Math.abs(spaceshipVelocity.y) < 0.2 &&
       Math.abs(spaceshipVelocity.z) < 0.2 &&
@@ -497,12 +460,17 @@ export const QuantumDashboard: React.FC<QuantumSceneProps> = ({
         if (!portalActivationInProgress) {
           portalActivationInProgress = true;
 
-          if (activePortalDetails?.targetRoom !== undefined) {
-            // This is a room transition portal
-            handleRoomTransition(activePortalDetails.targetRoom);
-          } else if (onNavigate) {
-            // This is a navigation portal
-            onNavigate(closestPortalId!);
+          if (closestPortalId) {
+            if (closestPortalId === "play") {
+              // Start the current quest
+              if (onNavigate) onNavigate(currentQuest);
+            } else if (closestPortalId.startsWith("room")) {
+              // Navigate to a completed room
+              if (onNavigate) onNavigate(closestPortalId);
+            } else {
+              // Regular navigation portals
+              if (onNavigate) onNavigate(closestPortalId);
+            }
           }
         }
       }, 1000); // Wait 1 second while stationary to trigger
@@ -513,18 +481,23 @@ export const QuantumDashboard: React.FC<QuantumSceneProps> = ({
       if (
         e.code === "Enter" &&
         closestPortalId &&
-        closestDistance < 2.5 &&
+        closestDistance < 5 &&
         !transitioning
       ) {
         if (!portalActivationInProgress) {
           portalActivationInProgress = true;
 
-          if (activePortalDetails?.targetRoom !== undefined) {
-            // This is a room transition portal
-            handleRoomTransition(activePortalDetails.targetRoom);
-          } else if (onNavigate) {
-            // This is a navigation portal
-            onNavigate(closestPortalId);
+          if (closestPortalId) {
+            if (closestPortalId === "play") {
+              // Start the current quest
+              if (onNavigate) onNavigate(currentQuest);
+            } else if (closestPortalId.startsWith("room")) {
+              // Navigate to a completed room
+              if (onNavigate) onNavigate(closestPortalId);
+            } else {
+              // Regular navigation portals
+              if (onNavigate) onNavigate(closestPortalId);
+            }
           }
         }
       }
@@ -540,38 +513,39 @@ export const QuantumDashboard: React.FC<QuantumSceneProps> = ({
     spaceshipPosition,
     spaceshipVelocity,
     onNavigate,
-    unlockedRooms,
-    currentRoom,
     transitioning,
+    completedRooms,
+    currentQuest,
   ]);
 
-  // Handle room transitions
-  const handleRoomTransition = (targetRoom: number) => {
-    // Only allow transition to unlocked rooms
-    if (!unlockedRooms.includes(targetRoom)) {
-      // Unlock the room if it's the next one
-      if (targetRoom === Math.max(...unlockedRooms) + 1) {
-        setUnlockedRooms([...unlockedRooms, targetRoom]);
-      } else {
-        return; // Cannot access this room yet
-      }
-    }
+  // Expose completeRoom function via ref
+  React.useImperativeHandle(ref, () => ({
+    completeRoom: (roomId: string) => {
+      if (!completedRooms.includes(roomId)) {
+        const updatedRooms = [...completedRooms, roomId];
+        setCompletedRooms(updatedRooms);
 
+        // Set the next room as the current quest
+        const roomNumber = parseInt(roomId.replace("room", ""));
+        if (roomNumber < 5) {
+          const nextRoom = `room${roomNumber + 1}`;
+          setCurrentQuest(nextRoom);
+        } else {
+          setCurrentQuest("complete"); // All rooms completed
+        }
+      }
+    },
+  }));
+
+  // Reset spaceship position if needed
+  const resetSpaceshipPosition = () => {
     setTransitioning(true);
 
-    // Define target positions for each room transition
-    const roomPositions: { [key: number]: THREE.Vector3 } = {
-      0: new THREE.Vector3(0, 3, 10), // Main hub position
-      1: new THREE.Vector3(0, 10, 0), // Room 1 position (higher up)
-      2: new THREE.Vector3(-15, 3, -15), // Room 2 position (left and deeper)
-    };
-
-    // Teleport the spaceship to the new room position
+    // Reset to initial position
     setTimeout(() => {
-      setSpaceshipPosition(roomPositions[targetRoom]);
+      setSpaceshipPosition(new THREE.Vector3(0, 3, 12));
       setSpaceshipVelocity({ x: 0, y: 0, z: 0 });
-      setCurrentRoom(targetRoom);
-      setTimeout(() => setTransitioning(false), 500); // Add a small delay before allowing new interactions
+      setTimeout(() => setTransitioning(false), 500);
     }, 500);
   };
 
@@ -585,7 +559,16 @@ export const QuantumDashboard: React.FC<QuantumSceneProps> = ({
   };
 
   if (loading) {
-    return <LoadingScreen progress={loadingProgress} />;
+    const loadingMessage =
+      loadingPhase === "init"
+        ? "Initializing quantum systems..."
+        : loadingPhase === "resources"
+          ? "Loading quantum assets and calibrating controls..."
+          : "Preparing quantum dashboard for interaction...";
+
+    return (
+      <LoadingScreen progress={loadingProgress} message={loadingMessage} />
+    );
   }
 
   // Room transition effect
@@ -645,85 +628,86 @@ export const QuantumDashboard: React.FC<QuantumSceneProps> = ({
         />
         {/* Space environment without a main platform */}
         {/* Space environment without background sphere */}
-        {/* Interactive portals - conditionally rendered based on current room */}
-        {/* Main hub portals (Room 0) */}
-        {currentRoom === 0 && (
-          <>
-            <QuantumPortal
-              position={[8, 2, -10]}
-              title="Play Quest"
-              onClick={() => onNavigate?.("play")}
-              active={activePortal === "play"}
-            />
-            <QuantumPortal
-              position={[-8, 2, -10]}
-              title="Leaderboard"
-              onClick={() => onNavigate?.("leaderboard")}
-              active={activePortal === "leaderboard"}
-            />
-            <QuantumPortal
-              position={[0, 2, -15]}
-              title="Quantum Guide"
-              onClick={() => onNavigate?.("guide")}
-              active={activePortal === "guide"}
-            />
-            {/* Portal to Room 1 */}
-            <QuantumPortal
-              position={[0, 6, -8]}
-              title={unlockedRooms.includes(1) ? "Enter Lab" : "Locked Lab"}
-              onClick={() =>
-                unlockedRooms.includes(1) && handleRoomTransition(1)
-              }
-              active={activePortal === "room1"}
-            />
-          </>
-        )}
+        {/* Main navigation portals */}
+        <QuantumPortal
+          position={[0, 2, -5]}
+          title={
+            currentQuest === "complete"
+              ? "All Rooms Completed!"
+              : completedRooms.length === 0
+                ? "Start First Quest"
+                : `Play ${currentQuest.replace("room", "Room ")}`
+          }
+          onClick={() =>
+            currentQuest !== "complete" && onNavigate?.(currentQuest)
+          }
+          active={activePortal === "play"}
+        />
+        <QuantumPortal
+          position={[-24, 2, -2]}
+          title="Leaderboard"
+          onClick={() => onNavigate?.("leaderboard")}
+          active={activePortal === "leaderboard"}
+        />
+        <QuantumPortal
+          position={[-12, 2, -4]}
+          title="Quantum Guide"
+          onClick={() => onNavigate?.("guide")}
+          active={activePortal === "guide"}
+        />
+        <QuantumPortal
+          position={[12, 2, -4]}
+          title="Settings"
+          onClick={() => onNavigate?.("settings")}
+          active={activePortal === "settings"}
+        />
+        <QuantumPortal
+          position={[24, 2, -2]}
+          title="Achievements"
+          onClick={() => onNavigate?.("achievements")}
+          active={activePortal === "achievements"}
+        />
 
-        {/* Room 1 portals */}
-        {currentRoom === 1 && (
-          <>
-            <QuantumPortal
-              position={[12, 10, -5]}
-              title="Achievements"
-              onClick={() => onNavigate?.("achievements")}
-              active={activePortal === "achievements"}
-            />
-            {/* Portal back to main hub */}
-            <QuantumPortal
-              position={[0, 10, 0]}
-              title="Return to Hub"
-              onClick={() => handleRoomTransition(0)}
-              active={activePortal === "room0"}
-            />
-            {/* Portal to Room 2 */}
-            <QuantumPortal
-              position={[-8, 10, -10]}
-              title={unlockedRooms.includes(2) ? "Deep Space" : "Locked Area"}
-              onClick={() =>
-                unlockedRooms.includes(2) && handleRoomTransition(2)
-              }
-              active={activePortal === "room2"}
-            />
-          </>
+        {/* Completed room portals */}
+        {completedRooms.includes("room1") && (
+          <QuantumPortal
+            position={[-28, 2, 0]}
+            title="Room 1"
+            onClick={() => onNavigate?.("room1")}
+            active={activePortal === "room1"}
+          />
         )}
-
-        {/* Room 2 portals */}
-        {currentRoom === 2 && (
-          <>
-            <QuantumPortal
-              position={[-20, 2, -20]}
-              title="Settings"
-              onClick={() => onNavigate?.("settings")}
-              active={activePortal === "settings"}
-            />
-            {/* Portal back to Room 1 */}
-            <QuantumPortal
-              position={[-12, 2, -15]}
-              title="Return to Lab"
-              onClick={() => handleRoomTransition(1)}
-              active={activePortal === "room1"}
-            />
-          </>
+        {completedRooms.includes("room2") && (
+          <QuantumPortal
+            position={[-14, 2, 2]}
+            title="Room 2"
+            onClick={() => onNavigate?.("room2")}
+            active={activePortal === "room2"}
+          />
+        )}
+        {completedRooms.includes("room3") && (
+          <QuantumPortal
+            position={[0, 2, 3]}
+            title="Room 3"
+            onClick={() => onNavigate?.("room3")}
+            active={activePortal === "room3"}
+          />
+        )}
+        {completedRooms.includes("room4") && (
+          <QuantumPortal
+            position={[14, 2, 2]}
+            title="Room 4"
+            onClick={() => onNavigate?.("room4")}
+            active={activePortal === "room4"}
+          />
+        )}
+        {completedRooms.includes("room5") && (
+          <QuantumPortal
+            position={[28, 2, 0]}
+            title="Room 5"
+            onClick={() => onNavigate?.("room5")}
+            active={activePortal === "room5"}
+          />
         )}
         {/* Spaceship */}
         <Spaceship
@@ -744,56 +728,56 @@ export const QuantumDashboard: React.FC<QuantumSceneProps> = ({
         {/* Minimal particle effects */}
         <QuantumParticles count={50} />
 
-        {/* Room-specific environment elements */}
-        {currentRoom === 1 && (
-          <>
-            {/* Lab environment elements */}
-            <mesh position={[0, 8, -5]} rotation={[0, 0, 0]}>
-              <torusGeometry args={[8, 0.5, 16, 36]} />
-              <meshStandardMaterial color="#3366AA" emissive="#224488" />
-            </mesh>
-            <pointLight position={[0, 12, -5]} color="#55AAFF" intensity={2} />
-          </>
-        )}
-
-        {currentRoom === 2 && (
-          <>
-            {/* Deep space environment elements */}
-            <mesh
-              position={[-15, 3, -25]}
-              rotation={[Math.PI / 4, Math.PI / 4, 0]}
-            >
-              <octahedronGeometry args={[8, 0]} />
-              <meshStandardMaterial
-                color="#553388"
-                emissive="#442277"
-                wireframe={true}
-              />
-            </mesh>
-            <pointLight
-              position={[-20, 5, -30]}
-              color="#AA66FF"
-              intensity={3}
-            />
-          </>
-        )}
+        {/* Enhanced ambient lighting */}
+        <pointLight position={[0, 8, -5]} color="#55AAFF" intensity={1.5} />
+        <pointLight position={[0, 5, 5]} color="#5588FF" intensity={1} />
       </Canvas>
 
-      {/* Room indicator */}
+      {/* Hub information */}
       <div className="absolute top-4 left-4 text-white font-orbitron bg-black bg-opacity-50 px-4 py-2 rounded">
-        {currentRoom === 0 && "Main Hub"}
-        {currentRoom === 1 && "Quantum Lab"}
-        {currentRoom === 2 && "Deep Space"}
+        <div>Quantum Hub</div>
+        <div className="text-sm mt-1">
+          {currentQuest === "complete"
+            ? "All Rooms Complete!"
+            : `Next Quest: ${currentQuest.replace("room", "Room ")}`}
+        </div>
+        <div className="text-sm mt-1">
+          {completedRooms.length === 5
+            ? "✓ Progress Complete"
+            : `Completed: ${completedRooms.length}/5`}
+        </div>
       </div>
 
       {/* Control instructions */}
       <div className="absolute bottom-4 left-4 text-white font-orbitron bg-black bg-opacity-50 px-4 py-2 rounded text-sm">
         <div>WASD - Move | Space/Shift - Up/Down</div>
-        <div>Hover near portal + Enter or stop for 1s to activate</div>
-        <div>Unlock new areas by accessing portals to locked rooms</div>
+        <div>Hover near portal + Enter to activate</div>
+        <div>
+          {completedRooms.length === 0
+            ? "Play Quest to begin your journey"
+            : "Complete rooms to unlock their portals"}
+        </div>
       </div>
+
+      {/* Add debugging button to simulate room completion (can be removed in production) */}
+      <button
+        className="absolute bottom-4 right-4 text-white font-orbitron bg-purple-700 px-4 py-2 rounded text-sm"
+        onClick={() => {
+          const nextRoom = `room${completedRooms.length + 1}`;
+          if (completedRooms.length < 5) {
+            setCompletedRooms([...completedRooms, nextRoom]);
+            if (completedRooms.length + 1 < 5) {
+              setCurrentQuest(`room${completedRooms.length + 2}`);
+            } else {
+              setCurrentQuest("complete"); // All rooms completed
+            }
+          }
+        }}
+      >
+        Debug: Complete Room
+      </button>
     </div>
   );
-};
+});
 
 export default QuantumDashboard;
