@@ -758,24 +758,6 @@ export const QuantumDashboard = React.forwardRef<
             : "Complete rooms to unlock their portals"}
         </div>
       </div>
-
-      {/* Add debugging button to simulate room completion (can be removed in production) */}
-      <button
-        className="absolute bottom-4 right-4 text-white font-orbitron bg-purple-700 px-4 py-2 rounded text-sm"
-        onClick={() => {
-          const nextRoom = `room${completedRooms.length + 1}`;
-          if (completedRooms.length < 5) {
-            setCompletedRooms([...completedRooms, nextRoom]);
-            if (completedRooms.length + 1 < 5) {
-              setCurrentQuest(`room${completedRooms.length + 2}`);
-            } else {
-              setCurrentQuest("complete"); // All rooms completed
-            }
-          }
-        }}
-      >
-        Debug: Complete Room
-      </button>
     </div>
   );
 });
