@@ -105,8 +105,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
         <QuantumDashboard onNavigate={handleNavigate} />
       </div>
 
-      {/* User info overlay */}
-      <div className="absolute top-4 left-4 z-10 bg-black bg-opacity-50 backdrop-blur-sm p-3 rounded-xl border border-gray-700">
+      {/* User info overlay - positioned in top-right */}
+      <div className="absolute top-4 right-20 z-10 bg-black bg-opacity-50 backdrop-blur-sm p-3 rounded-xl border border-gray-700">
         {user ? (
           <div className="flex items-center space-x-3">
             {user?.avatar_url ? (
@@ -162,7 +162,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
         </p>
       </div>
 
-      {/* Backstory Button */}
+      {/* Backstory Button - positioned in top-right */}
       <div className="absolute top-4 right-4 z-10">
         <button
           onClick={() => setShowBackstory(true)}
