@@ -94,6 +94,9 @@ const MainMenu: React.FC<MainMenuProps> = ({
         setShowSettings(true);
         break;
       default:
+        if (destination.startsWith("room")) {
+          onStartGame(); // Start the game with the specific room
+        }
         console.log(`Navigating to: ${destination}`);
     }
   };

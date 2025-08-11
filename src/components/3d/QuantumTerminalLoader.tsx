@@ -218,8 +218,8 @@ const QuantumTerminalLoader: React.FC<LoadingScreenProps> = ({
       {/* Main terminal */}
       <div className="z-20 w-full max-w-4xl px-4 relative">
         {/* Add style to hide any other titles */}
-        <style jsx global>{`
-          body.loading-active .main-menu-title {
+        <style>{`
+          .loading-active .main-menu-title {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
@@ -242,7 +242,7 @@ const QuantumTerminalLoader: React.FC<LoadingScreenProps> = ({
               QCortex Quantum Terminal v3.8.5
             </div>
             <div className="text-gray-400 text-xs">
-              PHASE {scanPhase + 1}/5:{" "}
+              PHASE {scanPhase}/5:{" "}
               {progress >= 100 ? "COMPLETE" : "IN PROGRESS"}
             </div>
           </div>
