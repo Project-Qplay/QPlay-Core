@@ -44,11 +44,13 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
       />
 
       {/* Add style tag to ensure main menu title is hidden */}
-      <style jsx global>{`
+      <style>
+        {`
         body[data-loading="true"] .main-menu-title {
           display: none !important;
         }
-      `}</style>
+        `}
+      </style>
     </div>
   );
 };

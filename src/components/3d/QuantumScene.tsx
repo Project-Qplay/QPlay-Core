@@ -5,6 +5,10 @@ import * as THREE from "three";
 import Spaceship from "./Spaceship";
 import LoadingScreen from "./LoadingScreen";
 import { QuantumUtils } from "../../utils/three-compatibility"; // Import quantum utilities
+// Import auth-related components and context for user sign-in/sign-out functionality
+import { useAuth } from "../../contexts/AuthContext";
+import { User, LogOut } from "lucide-react";
+import AuthModal from "../auth/AuthModal";
 
 // Floating platform component
 const QuantumPlatform = ({
@@ -140,7 +144,7 @@ const QuantumPortal: React.FC<{
       {/* Portal label */}
       <Html position={[0, 1.8, 0]} center>
         <div
-          className="text-white font-orbitron text-xl bg-black bg-opacity-50 px-4 py-2 rounded-lg"
+          className="text-white font-orbitron text-xl bg-black bg-opacity-50 px-4 py-2 rounded-lg html-text"
           style={{
             whiteSpace: "nowrap",
             boxShadow: active ? "0 0 10px #22FFAA" : "0 0 8px #55AAFF",
@@ -171,7 +175,7 @@ const QuantumPortal: React.FC<{
 };
 
 // Quantum particle effect - simplified version
-const QuantumParticles = ({ count = 50 }) => {
+const QuantumParticles = ({ count = 50, opacity = 1 }) => {
   const particles = useRef<THREE.Points>(null);
 
   // Create a simple array for star positions
@@ -220,12 +224,22 @@ const QuantumParticles = ({ count = 50 }) => {
 
 // Main scene component
 interface QuantumSceneProps {
-  onNavigate?: (destination: string) => void;
+  onNavigate: (destination: string) => void;
+}
+
+interface AuthOverlayProps {
+  onOpenAuthModal: (mode: "signin" | "signup") => void;
 }
 
 // Define the ref interface for external function access
 export interface QuantumDashboardRef {
+  // Method to mark a room as completed and update user progress
   completeRoom: (roomId: string) => void;
+  // Method to directly update progress data (for loading saved games)
+  updateProgress: (data: {
+    completedRooms?: string[];
+    currentQuest?: string;
+  }) => void;
 }
 
 // Simplified camera component that follows the spaceship
@@ -246,15 +260,50 @@ const SpaceshipCamera: React.FC<{
   return null;
 };
 
+// Simplified auth overlay component for QuantumScene
+const AuthOverlay: React.FC<AuthOverlayProps> = ({ onOpenAuthModal }) => {
+  // Get user data and sign out function from auth context
+  const { user, signOut } = useAuth();
+
+  return (
+    <div className="absolute top-4 right-24 z-[999]">
+      {user ? (
+        <div className="flex items-center space-x-2 bg-black bg-opacity-50 backdrop-blur-sm px-3 py-2 rounded-lg border border-purple-700">
+          <span className="text-white font-medium">{user.username}</span>
+          <button
+            onClick={signOut}
+            className="p-1.5 rounded-lg bg-gray-800/50 text-gray-300 hover:text-white hover:bg-gray-700/50"
+            title="Sign Out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <button
+          className="bg-black bg-opacity-50 backdrop-blur-sm p-3 rounded-full border border-purple-700 hover:bg-purple-900 hover:bg-opacity-50 transition-colors"
+          onClick={() => onOpenAuthModal("signin")}
+          title="Sign In"
+        >
+          <User className="w-6 h-6 text-purple-400" />
+        </button>
+      )}
+    </div>
+  );
+};
+
 export const QuantumDashboard = React.forwardRef<
   QuantumDashboardRef,
   QuantumSceneProps
 >(({ onNavigate }, ref) => {
-  const [loading, setLoading] = useState(true);
+  const [sceneLoading, setSceneLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingPhase, setLoadingPhase] = useState<
     "init" | "resources" | "complete"
   >("init");
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode] = useState<"signin" | "signup">("signin");
+  // Get user data, profile update function, and loading state from AuthContext
+  const { user, updateProfile, loading } = useAuth();
   const [spaceshipPosition, setSpaceshipPosition] = useState<THREE.Vector3>(
     new THREE.Vector3(0, 3, 12), // Start position with good view of all portals
   );
@@ -268,8 +317,9 @@ export const QuantumDashboard = React.forwardRef<
   });
   const [activePortal, setActivePortal] = useState<string | null>(null);
   const [transitioning, setTransitioning] = useState<boolean>(false);
-  const [completedRooms, setCompletedRooms] = useState<string[]>([]); // Track completed rooms
-  const [currentQuest, setCurrentQuest] = useState<string>("room1"); // Start with room1 as first quest
+  // Initialize with empty array, will update when user loads
+  const [completedRooms, setCompletedRooms] = useState<string[]>([]);
+  const [currentQuest, setCurrentQuest] = useState<string>("room1");
 
   // Controls state
   const keys = useRef({
@@ -302,7 +352,7 @@ export const QuantumDashboard = React.forwardRef<
     const timer3 = setTimeout(() => {
       setLoadingProgress(100);
       setLoadingPhase("complete");
-      setTimeout(() => setLoading(false), 500);
+      setTimeout(() => setSceneLoading(false), 500);
     }, 2000);
 
     return () => {
@@ -312,9 +362,12 @@ export const QuantumDashboard = React.forwardRef<
     };
   }, []);
 
-  // Keyboard controls
+  // Keyboard controls - disabled when auth modal is open
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Disable keyboard controls when auth modal is open
+      if (showAuthModal) return;
+
       if (e.code === "KeyW") keys.current.forward = true;
       if (e.code === "KeyS") keys.current.backward = true;
       if (e.code === "KeyA") keys.current.left = true;
@@ -339,11 +392,30 @@ export const QuantumDashboard = React.forwardRef<
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, []);
+  }, [showAuthModal]);
+
+  // Update completed rooms and current quest when user changes (login/logout)
+  // This loads the user's saved progress when they sign in and resets on sign out
+  useEffect(() => {
+    if (user && user.preferences) {
+      // Load user's saved progress from their profile
+      setCompletedRooms(user.preferences.completedRooms || []);
+      setCurrentQuest(user.preferences.currentQuest || "room1");
+    } else {
+      // Keep current progress when not logged in (don't reset)
+      // Local progress is maintained until the page refreshes
+    }
+  }, [user]);
 
   // Update spaceship velocity based on keys
   useEffect(() => {
     const updateVelocity = () => {
+      // Don't update velocity when modal is open
+      if (showAuthModal) {
+        setSpaceshipVelocity({ x: 0, y: 0, z: 0 });
+        return;
+      }
+
       const speed = 5;
 
       // Calculate velocity based on key presses
@@ -362,7 +434,7 @@ export const QuantumDashboard = React.forwardRef<
 
     const interval = setInterval(updateVelocity, 16); // ~60fps
     return () => clearInterval(interval);
-  }, []);
+  }, [showAuthModal]);
 
   // Portal interaction check with hover timer
   useEffect(() => {
@@ -518,7 +590,7 @@ export const QuantumDashboard = React.forwardRef<
     currentQuest,
   ]);
 
-  // Expose completeRoom function via ref
+  // Expose completeRoom and updateProgress functions via ref
   React.useImperativeHandle(ref, () => ({
     completeRoom: (roomId: string) => {
       if (!completedRooms.includes(roomId)) {
@@ -527,12 +599,43 @@ export const QuantumDashboard = React.forwardRef<
 
         // Set the next room as the current quest
         const roomNumber = parseInt(roomId.replace("room", ""));
+        let nextQuest = "complete";
         if (roomNumber < 5) {
-          const nextRoom = `room${roomNumber + 1}`;
-          setCurrentQuest(nextRoom);
-        } else {
-          setCurrentQuest("complete"); // All rooms completed
+          nextQuest = `room${roomNumber + 1}`;
         }
+        setCurrentQuest(nextQuest);
+
+        // Save progress to user profile if logged in
+        if (user) {
+          // Update the user profile with the new completed rooms and current quest
+          // This persists the data to the backend through the AuthContext
+          updateProfile({
+            preferences: {
+              ...user.preferences,
+              completedRooms: updatedRooms,
+              currentQuest: nextQuest,
+            },
+          }).catch((err) => console.error("Failed to save progress:", err));
+        }
+        // Progress is tracked locally for non-logged-in users, but not persisted
+      }
+    },
+    // Method to update progress data without showing any modals
+    updateProgress: (data: {
+      completedRooms?: string[];
+      currentQuest?: string;
+    }) => {
+      if (data.completedRooms) setCompletedRooms(data.completedRooms);
+      if (data.currentQuest) setCurrentQuest(data.currentQuest);
+
+      // Save to user profile if logged in
+      if (user) {
+        updateProfile({
+          preferences: {
+            ...user.preferences,
+            ...data,
+          },
+        }).catch((err) => console.error("Failed to update progress:", err));
       }
     },
   }));
@@ -558,7 +661,7 @@ export const QuantumDashboard = React.forwardRef<
     setSpaceshipRotation(rotation);
   };
 
-  if (loading) {
+  if (sceneLoading) {
     const loadingMessage =
       loadingPhase === "init"
         ? "Initializing quantum systems..."
@@ -571,33 +674,12 @@ export const QuantumDashboard = React.forwardRef<
     );
   }
 
-  // Room transition effect
+  // Simple transition effect
   if (transitioning) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-black">
-        <div className="text-center text-blue-400">
-          <div className="text-4xl font-orbitron mb-4">
-            Quantum Teleportation...
-          </div>
-          <div className="loading-dots text-2xl">
-            {Array(3)
-              .fill(".")
-              .map((dot, i) => (
-                <span
-                  key={i}
-                  style={
-                    {
-                      animationDelay: `${i * 0.3}s`,
-                      opacity: 0,
-                      animation: "fadeInOut 1.5s infinite",
-                    } as React.CSSProperties
-                  }
-                  className="inline-block mx-1"
-                >
-                  {dot}
-                </span>
-              ))}
-          </div>
+      <div className="h-screen w-full bg-black">
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+          <div className="w-10 h-10 border-4 border-t-transparent border-purple-400 rounded-full animate-spin"></div>
         </div>
       </div>
     );
@@ -605,7 +687,13 @@ export const QuantumDashboard = React.forwardRef<
 
   return (
     <div className="h-screen w-full">
-      <Canvas shadows>
+      <Canvas
+        shadows
+        style={{
+          opacity: showAuthModal ? 0 : 1,
+          transition: "opacity 0.2s ease-in-out",
+        }}
+      >
         {/* No PerspectiveCamera, just use default camera */}
         <ambientLight intensity={0.4} />
         <directionalLight position={[10, 15, 10]} intensity={1.0} />
@@ -733,29 +821,68 @@ export const QuantumDashboard = React.forwardRef<
         <pointLight position={[0, 5, 5]} color="#5588FF" intensity={1} />
       </Canvas>
 
-      {/* Hub information */}
-      <div className="absolute top-4 left-4 text-white font-orbitron bg-black bg-opacity-50 px-4 py-2 rounded">
-        <div>Quantum Hub</div>
-        <div className="text-sm mt-1">
-          {currentQuest === "complete"
-            ? "All Rooms Complete!"
-            : `Next Quest: ${currentQuest.replace("room", "Room ")}`}
+      {/* Simple Auth UI Overlay - Just username or sign in button */}
+      {/* Simple Auth UI Overlay */}
+      <AuthOverlay
+        onOpenAuthModal={() => {
+          // Set modal state immediately
+          setShowAuthModal(true);
+          // Force any three.js HTML elements to be hidden
+          document.querySelectorAll(".html-text").forEach((el) => {
+            (el as HTMLElement).style.display = "none";
+          });
+        }}
+      />
+
+      {/* Auth Modal - Only shows when sign in button is clicked */}
+      {showAuthModal && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center"
+          style={{ isolation: "isolate" }}
+        >
+          <div
+            className="absolute inset-0 bg-black"
+            style={{ pointerEvents: "all" }}
+            onClick={() => {
+              setShowAuthModal(false);
+              // Show HTML text elements when modal closes
+              document.querySelectorAll(".html-text").forEach((el) => {
+                (el as HTMLElement).style.display = "";
+              });
+            }}
+          ></div>
+          <div className="relative z-[10000]">
+            <AuthModal
+              isOpen={showAuthModal}
+              onClose={() => {
+                setShowAuthModal(false);
+                // Show HTML text elements when modal closes
+                document.querySelectorAll(".html-text").forEach((el) => {
+                  (el as HTMLElement).style.display = "";
+                });
+              }}
+              initialMode="signin"
+            />
+          </div>
         </div>
-        <div className="text-sm mt-1">
-          {completedRooms.length === 5
-            ? "✓ Progress Complete"
-            : `Completed: ${completedRooms.length}/5`}
+      )}
+
+      {/* Hub information - minimalist version */}
+      <div className="absolute top-4 left-4 z-50">
+        <div className="bg-black bg-opacity-50 backdrop-blur-sm p-2 rounded-lg border border-purple-700 text-gray-300">
+          <div>Quantum Hub</div>
+          <div className="text-sm mt-1">
+            {currentQuest === "complete"
+              ? "All Rooms Complete!"
+              : `Next Quest: ${currentQuest.replace("room", "Room ")}`}
+          </div>
         </div>
       </div>
 
-      {/* Control instructions */}
-      <div className="absolute bottom-4 left-4 text-white font-orbitron bg-black bg-opacity-50 px-4 py-2 rounded text-sm">
-        <div>WASD - Move | Space/Shift - Up/Down</div>
-        <div>Hover near portal + Enter to activate</div>
-        <div>
-          {completedRooms.length === 0
-            ? "Play Quest to begin your journey"
-            : "Complete rooms to unlock their portals"}
+      {/* Minimalist Control instructions */}
+      <div className="absolute bottom-4 left-4 z-50">
+        <div className="text-white bg-black bg-opacity-50 backdrop-blur-sm px-3 py-2 rounded-lg border border-purple-700 text-xs">
+          <div>WASD - Move | Space/Shift - Up/Down</div>
         </div>
       </div>
     </div>

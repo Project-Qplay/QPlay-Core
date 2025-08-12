@@ -43,7 +43,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [showBackstory, setShowBackstory] = useState(false);
-  const [user, setUser] = useState(mockUser);
+  // Using real auth instead of mock data
+  const { user, signOut } = useAuth();
 
   // Tips to display in rotation
   const tips = [
@@ -54,12 +55,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
   ];
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
-  // Use auth hook - fallback to mock functions if needed
-  const { signOut } = useAuth
-    ? useAuth()
-    : {
-        signOut: () => console.log("Sign out clicked"),
-      };
+  // Tips update interval
 
   const handleAuthClick = (mode: "signin" | "signup") => {
     setAuthMode(mode);
@@ -108,43 +104,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
         <QuantumDashboard onNavigate={handleNavigate} />
       </div>
 
-      {/* User info overlay - positioned in top-right */}
-      <div className="absolute top-4 right-20 z-10 bg-black bg-opacity-50 backdrop-blur-sm p-3 rounded-xl border border-gray-700">
-        {user ? (
-          <div className="flex items-center space-x-3">
-            {user?.avatar_url ? (
-              <img
-                src={user.avatar_url}
-                className="w-10 h-10 rounded-full border-2 border-purple-400"
-                aria-label="User Avatar"
-              />
-            ) : (
-              <User
-                className="w-8 h-8 text-gray-400"
-                aria-label="Default User Icon"
-              />
-            )}
-            <div>
-              <span className="font-semibold text-lg text-white">
-                {user?.username}
-              </span>
-              <div className="text-sm text-cyan-400">
-                Level {user?.quantum_mastery_level}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center space-x-3">
-            <button
-              className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 transition-colors text-white font-semibold"
-              onClick={() => handleAuthClick("signin")}
-            >
-              <User className="w-5 h-5 mr-2 inline" />
-              Sign In
-            </button>
-          </div>
-        )}
-      </div>
+      {/* User info is now handled within the QuantumScene component */}
 
       {/* Game title overlay - only displayed when not loading */}
       {!hide_title && (
@@ -185,13 +145,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
       {showLeaderboard && (
         <Leaderboard onClose={() => setShowLeaderboard(false)} />
       )}
-      {showAuth && (
-        <AuthModal
-          isOpen={showAuth}
-          onClose={() => setShowAuth(false)}
-          initialMode={authMode}
-        />
-      )}
+      {/* Auth modal is now handled within the QuantumScene component */}
 
       {/* Backstory Modal */}
       {showBackstory && (
