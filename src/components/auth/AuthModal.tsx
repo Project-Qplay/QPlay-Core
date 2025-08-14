@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { X, Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
-import { GoogleLogin } from '@react-oauth/google'; //Used in your LoginWithGoogle component:
-import {toast} from 'react-hot-toast'; //Used for showing success or error messages:
-import { CredentialResponse } from '@react-oauth/google'; //Used to type the credential response from Google:
+import { GoogleLogin } from "@react-oauth/google"; //Used in your LoginWithGoogle component:
+import { toast } from "react-hot-toast"; //Used for showing success or error messages:
+import { CredentialResponse } from "@react-oauth/google"; //Used to type the credential response from Google:
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialMode?: 'signin' | 'signup';
+  initialMode?: "signin" | "signup";
 }
 
 //  Google Login Button Component integrated with AuthContext
@@ -17,9 +17,11 @@ const LoginWithGoogle: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { signInWithGoogle } = useAuth(); //  Use auth context method for centralized login logic
 
   //  Handles Google login success
-  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+  const handleGoogleSuccess = async (
+    credentialResponse: CredentialResponse,
+  ) => {
     const credential = credentialResponse.credential;
-    
+
     //  Check if credential is present
     if (!credential) {
       toast.error("Missing Google credential");
@@ -40,7 +42,7 @@ const LoginWithGoogle: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       toast.error("Google Login Failed");
     }
   };
-    return (
+  return (
     //  Google login UI button
     <GoogleLogin
       onSuccess={handleGoogleSuccess}
@@ -60,7 +62,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
     email: "",
     password: "",
     username: "",
-    fullName: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -101,7 +102,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
           email: formData.email,
           password: formData.password,
           username: formData.username,
-          full_name: formData.fullName || undefined,
+          full_name: undefined,
         });
       }
       onClose();
@@ -120,7 +121,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const switchMode = () => {
     setMode(mode === "signin" ? "signup" : "signin");
     setErrors({});
-    setFormData({ email: "", password: "", username: "", fullName: "" });
+    setFormData({ email: "", password: "", username: "" });
   };
 
   return (
@@ -196,22 +197,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* Full Name (signup only, optional) */}
-          {mode === "signup" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Full Name <span className="text-gray-500">(optional)</span>
-              </label>
-              <input
-                type="text"
-                value={formData.fullName}
-                onChange={(e) => handleInputChange("fullName", e.target.value)}
-                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl
-                         focus:border-purple-400 focus:outline-none transition-colors duration-200"
-                placeholder="Enter your full name"
-              />
-            </div>
-          )}
+          {/* Full Name field removed to make sign up form shorter */}
 
           {/* Password */}
           <div>
@@ -298,25 +284,12 @@ const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         </form>
 
-    {/* Or sign in with Google */}
-   <div className="mt-6 flex justify-center [&>div]:mx-auto">
-  <LoginWithGoogle onClose={onClose} />
-</div>
+        {/* Or sign in with Google */}
+        <div className="mt-6 flex justify-center [&>div]:mx-auto">
+          <LoginWithGoogle onClose={onClose} />
+        </div>
 
-        {/* Features Preview (signup mode) */}
-        {mode === "signup" && (
-          <div className="mt-6 p-4 bg-purple-900/20 border border-purple-500/30 rounded-xl">
-            <h3 className="font-semibold text-purple-300 mb-2">
-              What you'll get:
-            </h3>
-            <ul className="text-sm text-purple-200 space-y-1">
-              <li>• Save your progress across all quantum rooms</li>
-              <li>• Compete on global leaderboards</li>
-              <li>• Unlock achievements and track statistics</li>
-              <li>• Access to advanced quantum challenges</li>
-            </ul>
-          </div>
-        )}
+        {/* Features Preview section removed to make sign up form shorter */}
       </div>
     </div>
   );

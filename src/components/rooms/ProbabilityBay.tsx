@@ -229,7 +229,7 @@ const ProbabilityBay: React.FC = () => {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 80, opacity: 0 }}
               transition={{ duration: 0.4 }}
-              className="bg-gray-900/95 rounded-2xl border border-yellow-500 max-w-3xl w-full p-8"
+              className="bg-gray-900/95 rounded-2xl border border-yellow-500 max-w-4xl w-full p-6"
             >
               <div className="text-center mb-6">
                 <div className="text-4xl mb-4">🎲</div>
@@ -349,7 +349,6 @@ const ProbabilityBay: React.FC = () => {
             {getGuidanceMessage()}
           </motion.div>
         </div>
-
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Dice Simulator */}
           <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
@@ -566,7 +565,6 @@ const ProbabilityBay: React.FC = () => {
               </>
             )}
           </div>
-
           {/* Lockers */}
           <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
             <h2 className="text-2xl font-semibold mb-6 flex items-center">
@@ -577,6 +575,30 @@ const ProbabilityBay: React.FC = () => {
               These lockers respond only to quantum interference patterns. The classical dice results are for comparison
               only - use the <strong>most frequent quantum outcome</strong> to unlock.
             </p>
+
+            {/* Guidance Message */}
+            {gameStage === "quantum_measured" &&
+              classicalMeasurements.length === 0 && (
+                <div className="mb-6 p-4 bg-blue-900/30 border border-blue-500 rounded-xl text-center">
+                  <p className="text-blue-200 font-semibold">
+                    Now, switch to the "Classical Dice" tab and roll them to see
+                    the difference in probability distribution!
+                  </p>
+                </div>
+              )}
+
+            {gameStage === "ready_to_solve" && (
+              <div className="mb-6 p-4 bg-yellow-900/30 border border-yellow-500 rounded-xl text-center">
+                <p className="text-yellow-200 font-semibold mb-2">
+                  Great! You've observed both classical and quantum behaviors.
+                </p>
+                <p className="text-yellow-100 text-sm">
+                  Compare the histograms. Which outcome is most probable in the{" "}
+                  <span className="text-cyan-300">Quantum</span> system? Select
+                  that locker and enter its number as the code.
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-4 mb-6">
               {LOCKER_NUMBERS.map((locker) => (
@@ -589,7 +611,7 @@ const ProbabilityBay: React.FC = () => {
                     selectedLocker === locker
                       ? "border-4 border-blue-400 bg-blue-100 shadow-xl ring-2 ring-blue-300 ring-offset-2 animate-pulse text-black"
                       : "border-gray-600 bg-gray-800/50 hover:bg-gray-700/50"
-                  }`}
+                  } ${roomCompleted ? "cursor-not-allowed" : ""}`}
                 >
                   <div className="text-center">
                     {roomCompleted &&
@@ -603,7 +625,6 @@ const ProbabilityBay: React.FC = () => {
                 </div>
               ))}
             </div>
-
             <div className="space-y-4">
               <select
                 value={lockerCode}
@@ -628,7 +649,6 @@ const ProbabilityBay: React.FC = () => {
                 Attempt Quantum Unlock
               </button>
             </div>
-
             {decoySolved && !roomCompleted && (
               <div className="mt-6 p-4 bg-red-900/30 border border-red-500 rounded-xl">
                 <p className="text-red-300 font-semibold">⚠️ Basis Mismatch!</p>
@@ -638,7 +658,6 @@ const ProbabilityBay: React.FC = () => {
                 </p>
               </div>
             )}
-
             {roomCompleted && (
               <div className="mt-6 p-4 bg-green-900/30 border border-green-500 rounded-xl">
                 <p className="text-green-300 font-semibold">🎉 Quantum System Stabilized!</p>
@@ -652,7 +671,6 @@ const ProbabilityBay: React.FC = () => {
           </div>
         </div>
       </div>
-
       <style>{`
         .quantum-glow {
           filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.6));

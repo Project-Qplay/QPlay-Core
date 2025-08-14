@@ -16,7 +16,6 @@ import Settings from "./Settings";
 import Leaderboard from "./Leaderboard";
 import AuthModal from "./auth/AuthModal";
 import { useAuth } from "../contexts/AuthContext";
-import LoadingScreen from "./3d/LoadingScreen";
 
 // Mock user for development - replace with actual auth integration from useAuth()
 const mockUser = {
@@ -30,9 +29,13 @@ const mockUser = {
 
 interface MainMenuProps {
   onStartGame: () => void;
+  hide_title?: boolean;
 }
 
-const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
+const MainMenu: React.FC<MainMenuProps> = ({
+  onStartGame,
+  hide_title = false,
+}) => {
   const [showGuide, setShowGuide] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -40,10 +43,8 @@ const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [showBackstory, setShowBackstory] = useState(false);
-  const [is3DLoaded, setIs3DLoaded] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [user, setUser] = useState(mockUser);
+  // Using real auth instead of mock data
+  const { user, signOut } = useAuth();
 
   // Tips to display in rotation
   const tips = [
@@ -54,12 +55,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
   ];
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
-  // Use auth hook - fallback to mock functions if needed
-  const { signOut } = useAuth
-    ? useAuth()
-    : {
-        signOut: () => console.log("Sign out clicked"),
-      };
+  // Tips update interval
 
   const handleAuthClick = (mode: "signin" | "signup") => {
     setAuthMode(mode);
@@ -73,41 +69,6 @@ const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
     }, 6000); // Change every 6 seconds
 
     return () => clearInterval(interval);
-  }, []);
-
-  // Loading sequence
-  useEffect(() => {
-    // Start at 0
-    setLoadingProgress(0);
-
-    // Simulate resource loading
-    const timer1 = setTimeout(() => {
-      setLoadingProgress(30);
-    }, 500);
-
-    const timer2 = setTimeout(() => {
-      setLoadingProgress(60);
-    }, 1000);
-
-    const timer3 = setTimeout(() => {
-      setLoadingProgress(90);
-    }, 1500);
-
-    // Complete loading
-    const timer4 = setTimeout(() => {
-      setLoadingProgress(100);
-      setTimeout(() => {
-        setLoading(false);
-        setIs3DLoaded(true);
-      }, 300);
-    }, 2000);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
-    };
   }, []);
 
   // Handle navigation from 3D scene
@@ -129,19 +90,12 @@ const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
         setShowSettings(true);
         break;
       default:
-        console.log(`Navigating to: ${destination}`);
+        if (destination.startsWith("room")) {
+          onStartGame(); // Start the game with the specific room
+        }
+      // Navigate to destination
     }
   };
-
-  // Show loading screen until 3D assets are ready
-  if (loading) {
-    return (
-      <LoadingScreen
-        progress={loadingProgress}
-        message="Initializing quantum dashboard..."
-      />
-    );
-  }
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -150,53 +104,19 @@ const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
         <QuantumDashboard onNavigate={handleNavigate} />
       </div>
 
-      {/* User info overlay */}
-      <div className="absolute top-4 left-4 z-10 bg-black bg-opacity-50 backdrop-blur-sm p-3 rounded-xl border border-gray-700">
-        {user ? (
-          <div className="flex items-center space-x-3">
-            {user?.avatar_url ? (
-              <img
-                src={user.avatar_url}
-                className="w-10 h-10 rounded-full border-2 border-purple-400"
-                aria-label="User Avatar"
-              />
-            ) : (
-              <User
-                className="w-8 h-8 text-gray-400"
-                aria-label="Default User Icon"
-              />
-            )}
-            <div>
-              <span className="font-semibold text-lg text-white">
-                {user?.username}
-              </span>
-              <div className="text-sm text-cyan-400">
-                Level {user?.quantum_mastery_level}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center space-x-3">
-            <button
-              className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 transition-colors text-white font-semibold"
-              onClick={() => handleAuthClick("signin")}
-            >
-              <User className="w-5 h-5 mr-2 inline" />
-              Sign In
-            </button>
-          </div>
-        )}
-      </div>
+      {/* User info is now handled within the QuantumScene component */}
 
-      {/* Game title overlay */}
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 text-center">
-        <h1 className="text-4xl font-orbitron font-bold mb-1 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-          QUANTUM QUEST
-        </h1>
-        <h2 className="text-lg font-medium text-gray-300">
-          The Entangled Escape
-        </h2>
-      </div>
+      {/* Game title overlay - only displayed when not loading */}
+      {!hide_title && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 text-center main-menu-title">
+          <h1 className="text-4xl font-orbitron font-bold mb-1 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            QUANTUM QUEST
+          </h1>
+          <h2 className="text-lg font-medium text-gray-300">
+            The Entangled Escape
+          </h2>
+        </div>
+      )}
 
       {/* Tips overlay */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 text-center max-w-lg mx-auto">
@@ -205,7 +125,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
         </p>
       </div>
 
-      {/* Backstory Button */}
+      {/* Backstory Button - positioned in top-right */}
       <div className="absolute top-4 right-4 z-10">
         <button
           onClick={() => setShowBackstory(true)}
@@ -225,13 +145,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ onStartGame }) => {
       {showLeaderboard && (
         <Leaderboard onClose={() => setShowLeaderboard(false)} />
       )}
-      {showAuth && (
-        <AuthModal
-          isOpen={showAuth}
-          onClose={() => setShowAuth(false)}
-          initialMode={authMode}
-        />
-      )}
+      {/* Auth modal is now handled within the QuantumScene component */}
 
       {/* Backstory Modal */}
       {showBackstory && (
