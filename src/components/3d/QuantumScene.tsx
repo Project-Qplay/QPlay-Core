@@ -531,6 +531,37 @@ export const QuantumDashboard = React.forwardRef<
     };
   }, [showAuthModal]);
 
+  // Handle Enter key for portal activation
+  useEffect(() => {
+    // Direct Enter key handler for portal navigation
+    const handleEnterKey = (e: KeyboardEvent) => {
+      if (
+        e.code === "Enter" &&
+        activePortal &&
+        !transitioning &&
+        !showAuthModal
+      ) {
+        // Prevent multiple activations
+        e.preventDefault();
+
+        // Handle portal navigation
+        if (activePortal === "play") {
+          // Start the current quest
+          onNavigate?.(currentQuest);
+        } else {
+          // Regular navigation portals
+          onNavigate?.(activePortal);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleEnterKey);
+
+    return () => {
+      window.removeEventListener("keydown", handleEnterKey);
+    };
+  }, [activePortal, transitioning, onNavigate, currentQuest, showAuthModal]);
+
   // Update completed rooms and current quest when user changes (login/logout)
   // This loads the user's saved progress when they sign in and resets on sign out
   useEffect(() => {
@@ -687,59 +718,19 @@ export const QuantumDashboard = React.forwardRef<
         if (!portalActivationInProgress) {
           portalActivationInProgress = true;
 
-          if (closestPortalId) {
-            if (closestPortalId === "play") {
-              // Start the current quest
-              if (onNavigate) onNavigate(currentQuest);
-            } else if (closestPortalId.startsWith("room")) {
-              // Navigate to a completed room
-              if (onNavigate) onNavigate(closestPortalId);
-            } else {
-              // Regular navigation portals
-              if (onNavigate) onNavigate(closestPortalId);
-            }
+          if (closestPortalId === "play") {
+            // Start the current quest
+            onNavigate?.(currentQuest);
+          } else {
+            // Regular navigation portals
+            onNavigate?.(closestPortalId);
           }
         }
       }, 1000); // Wait 1 second while stationary to trigger
     }
 
-    // Handle portal activation when Enter key is pressed
-    const checkPortalActivation = () => {
-      if (
-        keys.current.enter &&
-        activePortal &&
-        !transitioning &&
-        !portalActivationInProgress
-      ) {
-        portalActivationInProgress = true;
-
-        // Add a small delay to prevent multiple activations
-        setTimeout(() => {
-          // Handle portal navigation
-          if (activePortal === "play") {
-            // Start the current quest
-            onNavigate?.(currentQuest);
-          } else {
-            // Regular navigation portals
-            onNavigate?.(activePortal);
-          }
-
-          // Reset the flag after a short delay
-          setTimeout(() => {
-            portalActivationInProgress = false;
-          }, 300);
-        }, 100);
-      }
-    };
-
-    // Check for Enter key presses periodically
-    const enterKeyInterval = setInterval(checkPortalActivation, 200);
-
-    // No more event listener for handleKeyDown
-
     return () => {
       if (stationaryTimer) clearTimeout(stationaryTimer);
-      clearInterval(enterKeyInterval);
     };
   }, [
     catPosition,
@@ -978,7 +969,7 @@ export const QuantumDashboard = React.forwardRef<
                   ? `▶ Play ${currentQuest.replace("room", "Room ")} ▶`
                   : `Play ${currentQuest.replace("room", "Room ")}`
           }
-          onClick={() => {}} // Removed direct navigation on click
+          onClick={() => onNavigate?.(currentQuest)}
           active={activePortal === "play"}
         />
         <QuantumPortal
@@ -986,7 +977,7 @@ export const QuantumDashboard = React.forwardRef<
           title={
             activePortal === "leaderboard" ? "▶ Leaderboard ▶" : "Leaderboard"
           }
-          onClick={() => {}} // Removed direct navigation on click
+          onClick={() => onNavigate?.("leaderboard")}
           active={activePortal === "leaderboard"}
         />
         <QuantumPortal
@@ -994,13 +985,13 @@ export const QuantumDashboard = React.forwardRef<
           title={
             activePortal === "guide" ? "▶ Quantum Guide ▶" : "Quantum Guide"
           }
-          onClick={() => {}} // Removed direct navigation on click
+          onClick={() => onNavigate?.("guide")}
           active={activePortal === "guide"}
         />
         <QuantumPortal
           position={[12, 2, -4]}
           title={activePortal === "settings" ? "▶ Settings ▶" : "Settings"}
-          onClick={() => {}} // Removed direct navigation on click
+          onClick={() => onNavigate?.("settings")}
           active={activePortal === "settings"}
         />
         <QuantumPortal
@@ -1010,7 +1001,7 @@ export const QuantumDashboard = React.forwardRef<
               ? "▶ Achievements ▶"
               : "Achievements"
           }
-          onClick={() => {}} // Removed direct navigation on click
+          onClick={() => onNavigate?.("achievements")}
           active={activePortal === "achievements"}
         />
         {/* Completed room portals */}
@@ -1018,7 +1009,7 @@ export const QuantumDashboard = React.forwardRef<
           <QuantumPortal
             position={[-28, 2, 0]}
             title={activePortal === "room1" ? "▶ Room 1 ▶" : "Room 1"}
-            onClick={() => {}} // Removed direct navigation on click
+            onClick={() => onNavigate?.("room1")}
             active={activePortal === "room1"}
           />
         )}
@@ -1026,7 +1017,7 @@ export const QuantumDashboard = React.forwardRef<
           <QuantumPortal
             position={[-14, 2, 2]}
             title={activePortal === "room2" ? "▶ Room 2 ▶" : "Room 2"}
-            onClick={() => {}} // Removed direct navigation on click
+            onClick={() => onNavigate?.("room2")}
             active={activePortal === "room2"}
           />
         )}
@@ -1034,7 +1025,7 @@ export const QuantumDashboard = React.forwardRef<
           <QuantumPortal
             position={[0, 2, 3]}
             title={activePortal === "room3" ? "▶ Room 3 ▶" : "Room 3"}
-            onClick={() => {}} // Removed direct navigation on click
+            onClick={() => onNavigate?.("room3")}
             active={activePortal === "room3"}
           />
         )}
@@ -1042,7 +1033,7 @@ export const QuantumDashboard = React.forwardRef<
           <QuantumPortal
             position={[14, 2, 2]}
             title={activePortal === "room4" ? "▶ Room 4 ▶" : "Room 4"}
-            onClick={() => {}} // Removed direct navigation on click
+            onClick={() => onNavigate?.("room4")}
             active={activePortal === "room4"}
           />
         )}
@@ -1050,7 +1041,7 @@ export const QuantumDashboard = React.forwardRef<
           <QuantumPortal
             position={[28, 2, 0]}
             title={activePortal === "room5" ? "▶ Room 5 ▶" : "Room 5"}
-            onClick={() => {}} // Removed direct navigation on click
+            onClick={() => onNavigate?.("room5")}
             active={activePortal === "room5"}
           />
         )}
@@ -1203,7 +1194,10 @@ export const QuantumDashboard = React.forwardRef<
       {/* Minimalist Control instructions */}
       <div className="absolute bottom-4 left-4 z-50">
         <div className="text-white bg-black bg-opacity-50 backdrop-blur-sm px-3 py-2 rounded-lg border border-purple-700 text-xs">
-          <div>WASD - Move | Space/Shift - Up/Down</div>
+          <div>
+            WASD - Move | Space/Shift - Up/Down | Enter - Activate Portal |
+            Click - Activate Portal
+          </div>
         </div>
       </div>
     </div>
