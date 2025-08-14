@@ -54,3 +54,9 @@ Quantum Quest is a fun quantum-themed game. This project has two parts:
 - `.env` — Your secret keys (not shared)
 
 ---
+
+## Credits
+
+- Cat 3D model used in the game: [LowPoly Cat Rig + Run Animation](https://sketchfab.com/3d-models/lowpoly-cat-rig-run-animation-c36df576c9ae4ed28e89069b1a2f427a) by Omabuarts Studio on Sketchfab
+
+---

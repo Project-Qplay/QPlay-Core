@@ -3,6 +3,12 @@ import { useFrame } from "@react-three/fiber";
 import { useGLTF, useAnimations, Html } from "@react-three/drei";
 import * as THREE from "three";
 
+/**
+ * Cat 3D model credits:
+ * "LowPoly Cat Rig + Run Animation" by Omabuarts Studio
+ * Source: https://sketchfab.com/3d-models/lowpoly-cat-rig-run-animation-c36df576c9ae4ed28e89069b1a2f427a
+ */
+
 // Interface for CatModel props
 interface CatModelProps {
   position?: [number, number, number];
@@ -488,7 +494,7 @@ const CatModel: React.FC<CatModelProps> = ({
   );
 };
 
-// Pre-load the cat model
+// Pre-load the cat model (source: https://sketchfab.com/3d-models/lowpoly-cat-rig-run-animation-c36df576c9ae4ed28e89069b1a2f427a)
 useGLTF.preload("/models/cat.glb");
 
 // Export with Suspense for better loading experience
