@@ -302,7 +302,7 @@ const ProbabilityBay: React.FC = () => {
                 onClick={() => setShowTutorial(false)}
                 className="w-full px-6 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 rounded-xl font-semibold text-lg transition-all duration-300 transform hover:scale-105"
               >
-                Begin Learning Journey
+                Begin Probability Analysis !
               </button>
             </motion.div>
           </motion.div>
