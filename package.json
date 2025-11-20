@@ -5,14 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:backend": "cd backend && python production_server.py",
+    "dev:full": "concurrently \"npm run dev:backend\" \"npm run dev\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "backend": "cd backend && python run.py",
-    "dev:full": "concurrently \"npm run backend\" \"npm run dev\"",
-    "setup:backend": "cd backend && python -m venv venv && source venv/bin/activate && pip install -r requirements.txt",
-    "supabase:setup": "echo 'Please run the SQL migration in your Supabase dashboard from supabase/migrations/001_initial_schema.sql'",
-    "setup:complete": "npm install && npm run setup:backend && npm run supabase:setup"
+    "setup:backend": "cd backend && pip install -r requirements.txt",
+    "setup:netlify-functions": "cd netlify/functions && pip install -r requirements.txt",
+    "setup:complete": "npm install && npm run setup:backend && npm run setup:netlify-functions"
   },
   "dependencies": {
     "@react-oauth/google": "^0.12.2",
