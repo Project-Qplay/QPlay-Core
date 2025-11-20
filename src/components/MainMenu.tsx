@@ -194,7 +194,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
               </h3>
               <p className="text-gray-300 text-sm">
                 Navigate the 3D quantum dashboard using the spaceship controls
-                (WASD keys, Space for up, Shift for down). Your spaceship will
+                (WASD or Arrow keys, Space for up, Shift for down). Your spaceship will
                 automatically orient toward your travel direction. To activate a
                 portal: fly close to it and stop for 1 second, or press Enter
                 when nearby. Each portal leads to a different section of your

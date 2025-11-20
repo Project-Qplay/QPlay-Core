@@ -498,25 +498,44 @@ export const QuantumDashboard = React.forwardRef<
   }, []);
 
   // Keyboard controls - disabled when auth modal is open
+  // Supports both WASD and Arrow keys for navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Disable keyboard controls when auth modal is open
       if (showAuthModal) return;
 
+      // WASD keys
       if (e.code === "KeyW") keys.current.forward = true;
       if (e.code === "KeyS") keys.current.backward = true;
       if (e.code === "KeyA") keys.current.left = true;
       if (e.code === "KeyD") keys.current.right = true;
+      
+      // Arrow keys (alternative controls)
+      if (e.code === "ArrowUp") keys.current.forward = true;
+      if (e.code === "ArrowDown") keys.current.backward = true;
+      if (e.code === "ArrowLeft") keys.current.left = true;
+      if (e.code === "ArrowRight") keys.current.right = true;
+      
+      // Other controls
       if (e.code === "Space") keys.current.up = true;
       if (e.code === "ShiftLeft") keys.current.down = true;
       if (e.code === "Enter") keys.current.enter = true;
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      // WASD keys
       if (e.code === "KeyW") keys.current.forward = false;
       if (e.code === "KeyS") keys.current.backward = false;
       if (e.code === "KeyA") keys.current.left = false;
       if (e.code === "KeyD") keys.current.right = false;
+      
+      // Arrow keys (alternative controls)
+      if (e.code === "ArrowUp") keys.current.forward = false;
+      if (e.code === "ArrowDown") keys.current.backward = false;
+      if (e.code === "ArrowLeft") keys.current.left = false;
+      if (e.code === "ArrowRight") keys.current.right = false;
+      
+      // Other controls
       if (e.code === "Space") keys.current.up = false;
       if (e.code === "ShiftLeft") keys.current.down = false;
       if (e.code === "Enter") keys.current.enter = false;

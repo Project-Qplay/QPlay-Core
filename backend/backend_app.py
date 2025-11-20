@@ -7,11 +7,13 @@ from flask_cors import CORS
 import requests
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from google.oauth2 import id_token
 from google.auth.transport import requests as grequests
 import random
 import string
+import secrets
+import hashlib
 
 # Load environment variables
 try:
@@ -46,6 +48,12 @@ def generate_username(email):
     base = email.split('@')[0]
     suffix = ''.join(random.choices(string.digits, k=4))
     return f"{base}_{suffix}"
+
+def generate_auth_token(user_id):
+    """Generate a simple authentication token for session management"""
+    # Create a token using user_id and a random secret
+    token_data = f"{user_id}:{secrets.token_urlsafe(32)}"
+    return hashlib.sha256(token_data.encode()).hexdigest()
 
 # Health check endpoints
 @app.route('/')
@@ -141,7 +149,8 @@ def signup():
             "best_completion_time": None,
             "total_score": 0,
             "quantum_mastery_level": 1,
-            "is_active": True
+            "is_active": True,
+            "preferences": {}
         }
         
         response = requests.post(f"{SUPABASE_REST_URL}/users", 
@@ -169,10 +178,16 @@ def signup():
             except:
                 pass
             
+            # Generate authentication token
+            access_token = generate_auth_token(user.get("id", "unknown"))
+            
             return jsonify({
                 "success": True,
                 "message": "Account created successfully!",
-                "user": user
+                "user": user,
+                "access_token": access_token,
+                "token_type": "Bearer",
+                "expires_in": 86400  # 24 hours in seconds
             })
         else:
             return jsonify({
@@ -212,7 +227,17 @@ def login():
                     )
                 except:
                     pass
-                return jsonify({"success": True, "user": user})
+                
+                # Generate authentication token
+                access_token = generate_auth_token(user.get("id", "unknown"))
+                
+                return jsonify({
+                    "success": True,
+                    "user": user,
+                    "access_token": access_token,
+                    "token_type": "Bearer",
+                    "expires_in": 86400  # 24 hours in seconds
+                })
             else:
                 return jsonify({"success": False, "error": "User not found"}), 404
         else:
@@ -256,10 +281,15 @@ def google_auth():
 
         if response.status_code == 200 and response.json():
             user = response.json()[0]
+            # Generate authentication token for existing user
+            access_token = generate_auth_token(user.get("id", "unknown"))
             return jsonify({
                 "success": True,
                 "message": "Google login successful",
-                "user": user
+                "user": user,
+                "access_token": access_token,
+                "token_type": "Bearer",
+                "expires_in": 86400
             })
 
         username = generate_username(email)
@@ -289,7 +319,8 @@ def google_auth():
             "best_completion_time": None,
             "total_score": 0,
             "quantum_mastery_level": 1,
-            "is_active": True
+            "is_active": True,
+            "preferences": {}
         }
 
         response = requests.post(
@@ -326,10 +357,16 @@ def google_auth():
         except:
             pass
 
+        # Generate authentication token for new user
+        access_token = generate_auth_token(created_user.get("id", "unknown"))
+
         return jsonify({
             "success": True,
             "message": "Google account created",
-            "user": created_user
+            "user": created_user,
+            "access_token": access_token,
+            "token_type": "Bearer",
+            "expires_in": 86400
         }), 201
 
     except ValueError as e:
