@@ -573,7 +573,7 @@ const SuperpositionTower: React.FC = () => {
                                 </div>
                                 {showHints && (
                                     <div className="text-yellow-400 text-xs mt-2 p-2 bg-yellow-900/20 rounded">
-                                        💡 Glowing pads show where superposition is needed.<br></br>
+                                        💡 Glowing pads show where superposition is needed.<br />
                                         💡 Stepping onto a pad whose phase is different than the one you're on causes interaction with the environment!
                                     </div>
                                 )}
