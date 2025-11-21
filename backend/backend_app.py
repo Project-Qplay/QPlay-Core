@@ -5,9 +5,8 @@ Simplified version of production_server.py that can be imported
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import requests
-import json
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from google.oauth2 import id_token
 from google.auth.transport import requests as grequests
 import random
@@ -20,6 +19,7 @@ try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
+    # It's okay if python-dotenv is not installed; environment variables may be set by other means
     pass
 
 # Create Flask app
@@ -32,6 +32,10 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", SUPABASE_ANON_KEY)
 SUPABASE_REST_URL = f"{SUPABASE_URL}/rest/v1" if SUPABASE_URL else ""
+
+# Validate required configuration for Google OAuth
+if GOOGLE_CLIENT_ID is None:
+    print("⚠️  WARNING: GOOGLE_CLIENT_ID not set. Google OAuth will not work.")
 
 def get_supabase_headers(use_service_key=False):
     """Get Supabase request headers"""
@@ -57,7 +61,6 @@ def generate_auth_token(user_id):
 
 # Health check endpoints
 @app.route('/')
-@app.route('/.netlify/functions/api')
 def root():
     """Health check endpoint"""
     return jsonify({
@@ -67,13 +70,13 @@ def root():
     })
 
 @app.route('/health')
-@app.route('/.netlify/functions/api/health')
 def health_check():
     """Detailed health check"""
     try:
         response = requests.get(f"{SUPABASE_REST_URL}/users?select=count", headers=get_supabase_headers(), timeout=5)
         db_status = "connected" if response.status_code == 200 else "error"
-    except:
+    except Exception:
+        # Database connection failed - return disconnected status
         db_status = "disconnected"
     
     return jsonify({
@@ -84,7 +87,6 @@ def health_check():
     })
 
 @app.route('/v1/models', methods=['GET'])
-@app.route('/.netlify/functions/api/v1/models', methods=['GET'])
 def get_models():
     """Get available AI models"""
     return jsonify({
@@ -94,7 +96,6 @@ def get_models():
     })
 
 @app.route('/api/game/rooms')
-@app.route('/.netlify/functions/api/api/game/rooms')
 def get_rooms():
     """Get available game rooms"""
     return jsonify({
@@ -107,7 +108,6 @@ def get_rooms():
 
 # Authentication endpoints
 @app.route('/api/auth/user')
-@app.route('/.netlify/functions/api/api/auth/user')
 def get_user():
     """Get current user info"""
     try:
@@ -121,7 +121,6 @@ def get_user():
         return jsonify({"error": f"Failed to get user: {str(e)}"}), 500
 
 @app.route('/api/auth/signup', methods=['POST', 'OPTIONS'])
-@app.route('/.netlify/functions/api/api/auth/signup', methods=['POST', 'OPTIONS'])
 def signup():
     """User signup"""
     if request.method == 'OPTIONS':
@@ -130,6 +129,11 @@ def signup():
     try:
         data = request.get_json()
         email = data.get("email")
+        
+        # Validate email input
+        if not email or not isinstance(email, str) or not email.strip():
+            return jsonify({"success": False, "error": "Email is required"}), 400
+        
         username = data.get("username", email.split("@")[0] if email else "player")
         full_name = data.get("full_name", "")
         
@@ -175,7 +179,8 @@ def signup():
                 requests.post(f"{SUPABASE_REST_URL}/leaderboard_entries", 
                             headers=get_supabase_headers(), 
                             json=leaderboard_entries)
-            except:
+            except Exception:
+                # Non-critical: leaderboard entry creation is optional
                 pass
             
             # Generate authentication token
@@ -202,7 +207,6 @@ def signup():
         }), 500
 
 @app.route('/api/auth/login', methods=['POST', 'OPTIONS'])
-@app.route('/.netlify/functions/api/api/auth/login', methods=['POST', 'OPTIONS'])
 def login():
     """User login"""
     if request.method == 'OPTIONS':
@@ -225,7 +229,7 @@ def login():
                         headers=get_supabase_headers(),
                         json={"last_login": datetime.now(timezone.utc).isoformat()}
                     )
-                except:
+                except Exception:
                     pass
                 
                 # Generate authentication token
@@ -246,13 +250,11 @@ def login():
         return jsonify({"success": False, "error": f"Login failed: {str(e)}"}), 500
 
 @app.route('/api/auth/signin', methods=['POST', 'OPTIONS'])
-@app.route('/.netlify/functions/api/api/auth/signin', methods=['POST', 'OPTIONS'])
 def signin():
     """Alias for login"""
     return login()
 
 @app.route('/api/auth/google', methods=['POST', 'OPTIONS'])
-@app.route('/.netlify/functions/api/api/auth/google', methods=['POST', 'OPTIONS'])
 def google_auth():
     """Google OAuth sign-in/signup"""
     if request.method == 'OPTIONS':
@@ -354,7 +356,7 @@ def google_auth():
                 headers=get_supabase_headers(use_service_key=True),
                 json=leaderboard_entries
             )
-        except:
+        except Exception:
             pass
 
         # Generate authentication token for new user
@@ -376,7 +378,6 @@ def google_auth():
 
 # Leaderboard endpoints
 @app.route('/api/leaderboard/score', methods=['GET'])
-@app.route('/.netlify/functions/api/api/leaderboard/score', methods=['GET'])
 def get_score_leaderboard():
     """Get score-based leaderboard"""
     try:
@@ -448,7 +449,6 @@ def get_score_leaderboard():
         })
 
 @app.route('/api/leaderboard/speed', methods=['GET'])
-@app.route('/.netlify/functions/api/api/leaderboard/speed', methods=['GET'])
 def get_speed_leaderboard():
     """Get speed-based leaderboard"""
     try:
@@ -500,7 +500,6 @@ def get_speed_leaderboard():
 # (I'll include the critical ones for game functionality)
 
 @app.route('/api/game/start', methods=['POST'])
-@app.route('/.netlify/functions/api/api/game/start', methods=['POST'])
 def start_game():
     """Start a new game session"""
     try:
@@ -528,7 +527,7 @@ def start_game():
             else:
                 session = game_session
                 session["id"] = f"demo-session-{datetime.now().timestamp()}"
-        except:
+        except Exception:
             session = game_session
             session["id"] = f"demo-session-{datetime.now().timestamp()}"
         
@@ -537,7 +536,6 @@ def start_game():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/game/complete', methods=['POST'])
-@app.route('/.netlify/functions/api/api/game/complete', methods=['POST'])
 def complete_game():
     """Complete a game and update scores"""
     try:
@@ -561,7 +559,7 @@ def complete_game():
                     "last_login": datetime.now(timezone.utc).isoformat()
                 }
             )
-        except:
+        except Exception:
             pass
         
         leaderboard_entry = {
@@ -580,7 +578,7 @@ def complete_game():
             requests.post(f"{SUPABASE_REST_URL}/leaderboard_entries", 
                         headers=get_supabase_headers(), 
                         json=leaderboard_entry)
-        except:
+        except Exception:
             pass
         
         try:
@@ -593,7 +591,7 @@ def complete_game():
                     "is_completed": True
                 }
             )
-        except:
+        except Exception:
             pass
         
         return jsonify({
@@ -608,7 +606,6 @@ def complete_game():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/game/save-progress', methods=['POST'])
-@app.route('/.netlify/functions/api/api/game/save-progress', methods=['POST'])
 def save_progress():
     """Save game progress"""
     try:
@@ -630,7 +627,7 @@ def save_progress():
                     "room_scores": room_scores
                 }
             )
-        except:
+        except Exception:
             pass
         
         return jsonify({"success": True, "message": "Progress saved"})
@@ -640,7 +637,6 @@ def save_progress():
 
 # Additional utility endpoints
 @app.route('/api/users', methods=['GET', 'POST'])
-@app.route('/.netlify/functions/api/api/users', methods=['GET', 'POST'])
 def users():
     """Get all users or create a new user"""
     if request.method == 'GET':
@@ -670,7 +666,6 @@ def users():
             return jsonify({"error": str(e)}), 500
 
 @app.route('/api/test-supabase')
-@app.route('/.netlify/functions/api/api/test-supabase')
 def test_supabase():
     """Test Supabase connection"""
     try:
@@ -686,7 +681,6 @@ def test_supabase():
         return jsonify({"supabase_connection": "ERROR", "error": str(e)})
 
 @app.route('/api/quantum/measurements', methods=['POST'])
-@app.route('/.netlify/functions/api/api/quantum/measurements', methods=['POST'])
 def log_quantum_measurement():
     """Log quantum measurement data"""
     try:
@@ -703,7 +697,7 @@ def log_quantum_measurement():
             requests.post(f"{SUPABASE_REST_URL}/quantum_measurements", 
                         headers=get_supabase_headers(), 
                         json=quantum_measurement)
-        except:
+        except Exception:
             pass
         
         return jsonify({"success": True, "message": "Quantum measurement logged"})
@@ -711,7 +705,6 @@ def log_quantum_measurement():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/achievements/unlock', methods=['POST'])
-@app.route('/.netlify/functions/api/api/achievements/unlock', methods=['POST'])
 def unlock_achievement():
     """Unlock user achievement"""
     try:
@@ -728,7 +721,7 @@ def unlock_achievement():
                     sessions = session_response.json()
                     if sessions:
                         user_id = sessions[0].get('user_id')
-            except:
+            except Exception:
                 pass
         
         if not user_id:
@@ -745,7 +738,7 @@ def unlock_achievement():
             requests.post(f"{SUPABASE_REST_URL}/user_achievements", 
                         headers=get_supabase_headers(), 
                         json=achievement_record)
-        except:
+        except Exception:
             pass
         
         return jsonify({

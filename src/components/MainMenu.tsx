@@ -193,8 +193,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
                 How to Play
               </h3>
               <p className="text-gray-300 text-sm">
-                Navigate the 3D quantum dashboard using the spaceship controls
-                (WASD or Arrow keys, Space for up, Shift for down). Your spaceship will
+                Navigate the 3D quantum dashboard using WASD or Arrow keys
+                to control your cat. Space for up, Shift for down. Your cat will
                 automatically orient toward your travel direction. To activate a
                 portal: fly close to it and stop for 1 second, or press Enter
                 when nearby. Each portal leads to a different section of your

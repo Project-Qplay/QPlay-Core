@@ -510,7 +510,7 @@ export const QuantumDashboard = React.forwardRef<
       if (e.code === "KeyA") keys.current.left = true;
       if (e.code === "KeyD") keys.current.right = true;
       
-      // Arrow keys (alternative controls)
+      // Arrow keys (alternative navigation)
       if (e.code === "ArrowUp") keys.current.forward = true;
       if (e.code === "ArrowDown") keys.current.backward = true;
       if (e.code === "ArrowLeft") keys.current.left = true;

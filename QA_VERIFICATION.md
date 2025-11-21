@@ -14,12 +14,11 @@ This document provides comprehensive verification of all Supabase integrations a
 ### 1.1 Sign-Up Flow
 **Endpoint**: `POST /api/auth/signup`
 
-**Request**:
+**Request** (Passwordless):
 ```json
 {
   "email": "player@example.com",
   "username": "quantumplayer",
-  "password": "password123",
   "full_name": "Quantum Player"
 }
 ```
@@ -53,6 +52,7 @@ This document provides comprehensive verification of all Supabase integrations a
 - ✅ User preferences initialized as empty object
 - ✅ Duplicate email check prevents duplicate signups
 - ✅ Username auto-generated if not provided
+- ✅ **Passwordless authentication** - no password required or stored
 
 **Database Operations**:
 1. Check if user exists: `GET /rest/v1/users?email=eq.{email}`
@@ -64,11 +64,10 @@ This document provides comprehensive verification of all Supabase integrations a
 ### 1.2 Sign-In Flow
 **Endpoint**: `POST /api/auth/signin`
 
-**Request**:
+**Request** (Passwordless - email only):
 ```json
 {
-  "email": "player@example.com",
-  "password": "password123"
+  "email": "player@example.com"
 }
 ```
 
@@ -96,6 +95,7 @@ This document provides comprehensive verification of all Supabase integrations a
 - ✅ `last_login` timestamp updated in database
 - ✅ Error handling for non-existent users
 - ✅ Error handling for database connection failures
+- ✅ **Passwordless authentication** - email verification only
 
 **Database Operations**:
 1. Find user: `GET /rest/v1/users?email=eq.{email}`

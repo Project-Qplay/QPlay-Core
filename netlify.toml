@@ -4,8 +4,7 @@
   functions = "netlify/functions"
 
 [functions]
-  # Python runtime for Netlify Functions
-  node_bundler = "esbuild"
+  # Python runtime detected automatically from .py extension
 
 # Proxy API requests to Netlify Functions
 [[redirects]]

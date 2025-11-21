@@ -51,7 +51,7 @@ const QuantumGuide: React.FC<QuantumGuideProps> = ({ onClose }) => {
             <div className="pt-4 border-t border-gray-700 mt-6">
               <h3 className="text-xl font-bold text-yellow-300 mb-2">Game Controls</h3>
               <p>
-                Navigate through the quantum dashboard using your spaceship controls (WASD or Arrow keys).
+                Navigate through the quantum dashboard using WASD or Arrow keys to control your cat.
                 Approach interactive portals and slow down to activate them.
                 Each portal will take you to a different aspect of your quantum adventure.
               </p>
