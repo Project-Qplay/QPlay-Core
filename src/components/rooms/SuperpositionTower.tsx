@@ -183,7 +183,6 @@ const SuperpositionTower: React.FC = () => {
             triggerDecoherence(
                 `❌ Cannot step on classical state! Pad ${padId + 1} is in ${pad.state === "up" ? "|0⟩" : "|1⟩"} state.`,
             );
-            //setAttempts((prev) => prev + 1);
             return;
         }
 
