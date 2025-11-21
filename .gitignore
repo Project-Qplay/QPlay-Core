@@ -24,6 +24,19 @@ dist-ssr
 *.sw?
 .env
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+
+# Netlify
+.netlify/
+
 # Node/TypeScript config and lock files
 tsconfig*.json
 package-lock.json

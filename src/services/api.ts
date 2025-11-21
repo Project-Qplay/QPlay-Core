@@ -3,7 +3,8 @@
  * Handles all communication with the Supabase-powered backend
  */
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
+// Use relative URLs in production (proxied by Netlify), or VITE_BACKEND_URL for local dev
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 interface SignInResponse {
   access_token: string;
