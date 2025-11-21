@@ -336,10 +336,6 @@ const SuperpositionTower: React.FC = () => {
         if (pad.locked) {
             return "from-green-500 to-emerald-500";
         }
-        //if (pad.glowing && showHints && (!pad.state.startsWith("superposition"))) {
-        //    return "from-yellow-400 to-orange-400 animate-pulse";
-        //}
-
         switch (pad.state) {
             case "up":
                 return "from-blue-500 to-blue-600";
