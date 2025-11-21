@@ -110,9 +110,6 @@ const SuperpositionTower: React.FC = () => {
     const applyHadamardGate = (padId: number) => {
         if (quantumPads[padId].locked || quantumStateCollapsed) return;
 
-        //setShowQuantumAnimation(true);
-        //setTimeout(() => setShowQuantumAnimation(false), 1000);
-
         setQuantumPads((prev) =>
             prev.map((pad) => {
                 if (pad.id === padId) {
