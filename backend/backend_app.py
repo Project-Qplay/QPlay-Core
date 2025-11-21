@@ -49,6 +49,8 @@ def get_supabase_headers(use_service_key=False):
 
 def generate_username(email):
     """Generate unique username from email"""
+    if '@' not in email:
+        raise ValueError("Invalid email address: missing '@' symbol")
     base = email.split('@')[0]
     suffix = ''.join(random.choices(string.digits, k=4))
     return f"{base}_{suffix}"
