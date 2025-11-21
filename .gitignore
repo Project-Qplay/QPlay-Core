@@ -39,4 +39,5 @@ vite.config.ts
 !vite.config.ts
 
 
-
+# Python stuff
+venv
