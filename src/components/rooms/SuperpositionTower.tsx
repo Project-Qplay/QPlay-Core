@@ -73,7 +73,7 @@ const SuperpositionTower: React.FC = () => {
             // |0> doesn't have a relative phase
 
             const newState = Math.random() > 0.5 ? "up" : "down";
-            const newPhase = newState == "up"
+            const newPhase = newState === "up"
                             ? (Math.floor(Math.random() * 2) * Math.PI) // For |1>, random phase of 0 or pi
                             : 0; // No phase for |0>, because it has none...
 
