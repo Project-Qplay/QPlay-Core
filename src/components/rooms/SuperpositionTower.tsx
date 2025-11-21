@@ -135,7 +135,7 @@ const SuperpositionTower: React.FC = () => {
                         // Phase should stay the same because it's a projective measurement
                         // meaning we keep the term |1> with its coefficient normalized (phase persists through this)...
                         // newPhase = 0;
-                        newPhase = newState === "up" ? newPhase : 0;
+                        newPhase = newState === "down" ? newPhase : 0;
 
                         newAmplitude = newPhase !== 0 ? -1.0 : 1.0;
                     }
