@@ -212,9 +212,9 @@ const SuperpositionTower: React.FC = () => {
         );
 
         // Add path segment with interference calculation
-        if (newStepHistory.length > 0) {
-            const lastPad = newStepHistory[newStepHistory.length - 1];
-            const interference = calculateInterference(lastPad, padId);
+        if (newStepHistory.length > 1) {
+            const prevPad = newStepHistory[newStepHistory.length - 2];
+            const interference = calculateInterference(prevPad, padId);
             setInterferencePattern(interference);
         }
 
