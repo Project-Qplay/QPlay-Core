@@ -129,14 +129,14 @@ def signup():
         return '', 200
     
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         email = data.get("email")
         
         # Validate email input
         if not email or not isinstance(email, str) or not email.strip():
             return jsonify({"success": False, "error": "Email is required"}), 400
         
-        username = data.get("username", email.split("@")[0] if email else "player")
+        username = data.get("username", email.split("@")[0])
         full_name = data.get("full_name", "")
         
         check_response = requests.get(f"{SUPABASE_REST_URL}/users?email=eq.{email}", headers=get_supabase_headers())
@@ -297,17 +297,29 @@ def google_auth():
             })
 
         username = generate_username(email)
+        
+        # Check username uniqueness with max retry limit to avoid infinite loop
+        max_attempts = 10
+        attempt = 0
         username_check = requests.get(
             f"{SUPABASE_REST_URL}/users?username=eq.{username}",
             headers=get_supabase_headers()
         )
 
-        while username_check.status_code == 200 and username_check.json():
+        while username_check.status_code == 200 and username_check.json() and attempt < max_attempts:
+            attempt += 1
             username = generate_username(email)
             username_check = requests.get(
                 f"{SUPABASE_REST_URL}/users?username=eq.{username}",
                 headers=get_supabase_headers()
             )
+        
+        # If still not unique after max attempts, return error
+        if username_check.status_code == 200 and username_check.json():
+            return jsonify({
+                "success": False,
+                "error": "Could not generate a unique username. Please try again later."
+            }), 500
 
         user_data = {
             "email": email,
@@ -390,15 +402,30 @@ def get_score_leaderboard():
         
         if response.status_code == 200:
             leaderboard_data = response.json()
+            
+            # Optimize: Fetch all user data in a single query to avoid N+1 problem
+            user_ids = [entry['user_id'] for entry in leaderboard_data if 'user_id' in entry]
+            user_map = {}
+            
+            if user_ids:
+                # Remove duplicates
+                unique_user_ids = list(set(user_ids))
+                user_ids_str = ','.join(f'"{uid}"' for uid in unique_user_ids)
+                
+                users_response = requests.get(
+                    f"{SUPABASE_REST_URL}/users?id=in.({user_ids_str})&select=id,username,full_name",
+                    headers=get_supabase_headers()
+                )
+                
+                if users_response.status_code == 200:
+                    for user in users_response.json():
+                        user_map[user['id']] = user
+            
             enriched_leaderboard = []
             for i, entry in enumerate(leaderboard_data):
                 entry["rank"] = i + 1
-                user_response = requests.get(
-                    f"{SUPABASE_REST_URL}/users?id=eq.{entry['user_id']}&select=username,full_name",
-                    headers=get_supabase_headers()
-                )
-                if user_response.status_code == 200 and user_response.json():
-                    user_data = user_response.json()[0]
+                user_data = user_map.get(entry['user_id'])
+                if user_data:
                     entry.update(user_data)
                 enriched_leaderboard.append(entry)
             
@@ -460,15 +487,30 @@ def get_speed_leaderboard():
         )
         if response.status_code == 200:
             leaderboard_data = response.json()
+            
+            # Optimize: Fetch all user data in a single query to avoid N+1 problem
+            user_ids = [entry['user_id'] for entry in leaderboard_data if 'user_id' in entry]
+            user_map = {}
+            
+            if user_ids:
+                # Remove duplicates
+                unique_user_ids = list(set(user_ids))
+                user_ids_str = ','.join(f'"{uid}"' for uid in unique_user_ids)
+                
+                users_response = requests.get(
+                    f"{SUPABASE_REST_URL}/users?id=in.({user_ids_str})&select=id,username,full_name",
+                    headers=get_supabase_headers()
+                )
+                
+                if users_response.status_code == 200:
+                    for user in users_response.json():
+                        user_map[user['id']] = user
+            
             enriched_leaderboard = []
             for i, entry in enumerate(leaderboard_data):
                 entry["rank"] = i + 1
-                user_response = requests.get(
-                    f"{SUPABASE_REST_URL}/users?id=eq.{entry['user_id']}&select=username,full_name",
-                    headers=get_supabase_headers()
-                )
-                if user_response.status_code == 200 and user_response.json():
-                    user_data = user_response.json()[0]
+                user_data = user_map.get(entry['user_id'])
+                if user_data:
                     entry.update(user_data)
                 enriched_leaderboard.append(entry)
             
@@ -541,9 +583,17 @@ def start_game():
 def complete_game():
     """Complete a game and update scores"""
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         user_id = data.get("user_id")
+        
+        # Validate user_id
+        if not user_id:
+            return jsonify({"error": "User ID is required"}), 400
+        
         session_id = data.get("session_id")
+        if not session_id:
+            return jsonify({"error": "Session ID is required"}), 400
+        
         completion_time = data.get("completion_time", 300)
         total_score = data.get("total_score", 1000)
         difficulty = data.get("difficulty", "easy")
