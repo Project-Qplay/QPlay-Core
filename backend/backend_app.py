@@ -232,6 +232,7 @@ def login():
                         json={"last_login": datetime.now(timezone.utc).isoformat()}
                     )
                 except Exception:
+                    # Non-critical: last_login update is optional, continue if it fails
                     pass
                 
                 # Generate authentication token
@@ -371,6 +372,7 @@ def google_auth():
                 json=leaderboard_entries
             )
         except Exception:
+            # Non-critical: leaderboard entry creation is optional for new users
             pass
 
         # Generate authentication token for new user
@@ -612,6 +614,7 @@ def complete_game():
                 }
             )
         except Exception:
+            # Non-critical: session update failure shouldn't stop game completion
             pass
         
         leaderboard_entry = {
@@ -631,6 +634,7 @@ def complete_game():
                         headers=get_supabase_headers(), 
                         json=leaderboard_entry)
         except Exception:
+            # Non-critical: leaderboard entry creation failure shouldn't stop game completion
             pass
         
         try:
@@ -644,6 +648,7 @@ def complete_game():
                 }
             )
         except Exception:
+            # Non-critical: user stats update failure shouldn't stop game completion
             pass
         
         return jsonify({
@@ -680,6 +685,7 @@ def save_progress():
                 }
             )
         except Exception:
+            # Non-critical: progress save failure shouldn't block the request
             pass
         
         return jsonify({"success": True, "message": "Progress saved"})
@@ -749,7 +755,9 @@ def log_quantum_measurement():
             requests.post(f"{SUPABASE_REST_URL}/quantum_measurements", 
                         headers=get_supabase_headers(), 
                         json=quantum_measurement)
-        except Exception:
+        except Exception as e:
+            # Non-critical: quantum measurement logging failure shouldn't block gameplay
+            print(f"Failed to log quantum measurement: {e}")
             pass
         
         return jsonify({"success": True, "message": "Quantum measurement logged"})
@@ -774,6 +782,7 @@ def unlock_achievement():
                     if sessions:
                         user_id = sessions[0].get('user_id')
             except Exception:
+                # Non-critical: individual achievement unlock failure shouldn't block the request
                 pass
         
         if not user_id:
@@ -790,8 +799,10 @@ def unlock_achievement():
             requests.post(f"{SUPABASE_REST_URL}/user_achievements", 
                         headers=get_supabase_headers(), 
                         json=achievement_record)
-        except Exception:
-            pass
+        except Exception as e:
+            # Log the exception and return an error response
+            print(f"Error unlocking achievement: {e}")
+            return jsonify({"error": "Failed to unlock achievement"}), 500
         
         return jsonify({
             "success": True,
