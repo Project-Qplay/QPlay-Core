@@ -1,9 +1,14 @@
 /**
  * API Service for Quantum Quest Frontend
- * Handles all communication with the Supabase-powered backend
+ * Handles all communication with Netlify Functions and Supabase
  */
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
+// Use Netlify Functions for API endpoints
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || (
+  import.meta.env.MODE === 'development'
+    ? 'http://localhost:8888/.netlify/functions' // Netlify dev server
+    : '/.netlify/functions' // Production Netlify Functions
+);
 
 interface SignInResponse {
   access_token: string;
@@ -65,9 +70,9 @@ class ApiService {
     }
   }
 
-  // Authentication API calls (Supabase-powered)
+  // Authentication API calls (Netlify Functions)
   async signIn(email: string, password: string): Promise<SignInResponse> {
-    const response = await this.request('/api/auth/signin', {
+    const response = await this.request('/auth-login', {
       method: 'POST',
       body: JSON.stringify({ email, password })
     });
@@ -81,7 +86,7 @@ class ApiService {
   }
 
   async signUp(data: SignUpData): Promise<SignInResponse> {
-    const response = await this.request('/api/auth/signup', {
+    const response = await this.request('/auth-signup', {
       method: 'POST',
       body: JSON.stringify(data)
     });
@@ -126,14 +131,14 @@ class ApiService {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (difficulty) params.append('difficulty', difficulty);
     
-    return this.request(`/api/leaderboard/speed?${params}`);
+    return this.request(`/leaderboard?type=speed&${params}`);
   }
 
   async getScoreLeaderboard(limit: number = 50, difficulty?: string) {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (difficulty) params.append('difficulty', difficulty);
     
-    return this.request(`/api/leaderboard/score?${params}`);
+    return this.request(`/leaderboard?type=score&${params}`);
   }
 
   async getMasteryLeaderboard(limit: number = 50) {
@@ -152,9 +157,9 @@ class ApiService {
     });
   }
 
-  // Game Session API calls - Updated to match backend endpoints
+  // Game Session API calls - Updated to match Netlify Functions
   async startGameSession(userId: string, difficulty: string = 'easy') {
-    return this.request('/api/game/start', {
+    return this.request('/game-session', {
       method: 'POST',
       body: JSON.stringify({
         user_id: userId,
@@ -164,7 +169,7 @@ class ApiService {
   }
 
   async saveGameProgress(sessionId: string, currentRoom: string, roomTimes: any, roomAttempts: any, roomScores?: any) {
-    return this.request('/api/game/save-progress', {
+    return this.request('/game-session', {
       method: 'POST',
       body: JSON.stringify({
         session_id: sessionId,
@@ -177,7 +182,7 @@ class ApiService {
   }
 
   async completeGameSession(sessionId: string, userId: string, completionTime: number, totalScore: number, roomsCompleted: number, hintsUsed: number = 0, difficulty: string = 'easy') {
-    return this.request('/api/game/complete', {
+    return this.request('/game-session', {
       method: 'POST',
       body: JSON.stringify({
         session_id: sessionId,
@@ -276,7 +281,7 @@ class ApiService {
   }
 
   async logQuantumMeasurement(sessionId: string, roomId: string, measurementType: string, measurementData: any) {
-    return this.request('/api/quantum/measurements', {
+    return this.request('/quantum-measurements', {
       method: 'POST',
       body: JSON.stringify({
         session_id: sessionId,
@@ -288,7 +293,7 @@ class ApiService {
   }
 
   async unlockAchievement(achievementId: string, sessionId?: string, userId?: string) {
-    return this.request('/api/achievements/unlock', {
+    return this.request('/achievements', {
       method: 'POST',
       body: JSON.stringify({
         achievement_id: achievementId,

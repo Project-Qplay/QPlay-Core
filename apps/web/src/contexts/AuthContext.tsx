@@ -108,13 +108,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
    // Function to handle sign-in via Google OAuth credential
- // Handles sending credential to /api/auth/google.
+ // Handles sending credential to Netlify Functions
 const signInWithGoogle = async (credential: string) => {
   setLoading(true); // Set loading state to show spinner or disable UI during the request
 
   try {
-    // Send the credential (JWT from Google) to your Flask backend for verification
-    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/google`, {
+    // Send the credential (JWT from Google) to Netlify Functions for verification
+    const baseUrl = import.meta.env.VITE_BACKEND_URL || (
+      import.meta.env.MODE === 'development'
+        ? 'http://localhost:8888/.netlify/functions'
+        : '/.netlify/functions'
+    );
+    
+    const res = await fetch(`${baseUrl}/auth-google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ credential }) // Send the token in request body
