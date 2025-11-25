@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "netlify dev",
-    "build": "cd apps/web && npm run build",
+    "build": "npm run install:all && cd apps/web && npm run build",
     "preview": "cd apps/web && npm run preview",
     "install:all": "cd apps/web && npm install && cd ../../netlify/functions && npm install"
   },
