@@ -86,10 +86,10 @@ QPlay-Core/
 │   ├── package.json          # Root scripts
 │   └── .nvmrc               # Node version lock
 │
-└── 📚 Documentation
+├── 📚 Documentation
     ├── README.md                    # Project overview
-    ├── PROJECT_DOCUMENTATION.md     # Complete guide
-    └── INSTALLATION_GUIDE.md       # Setup & troubleshooting
+    ├── Project_documentation.md     # Complete guide
+    └── Installation_guide.md       # Setup & troubleshooting
 
 Data Flow:
 Frontend → Netlify Functions → Supabase → Google OAuth
@@ -198,10 +198,10 @@ Frontend → Netlify Functions → Supabase → Google OAuth
    - **NEW**: Clean separation with 300MB+ frontend, 10MB backend
 
 ### **Phase 4: Development Environment**
-1. **Created Comprehensive Documentation**
+2. **Created Comprehensive Documentation**
    - `README.md`: Professional project overview
-   - `PROJECT_DOCUMENTATION.md`: Complete technical guide
-   - `INSTALLATION_GUIDE.md`: Step-by-step setup with troubleshooting
+   - `Project_documentation.md`: Complete technical guide
+   - `Installation_guide.md`: Step-by-step setup with troubleshooting
 
 2. **Added Version Control**
    ```json
@@ -385,8 +385,8 @@ git push  # Automatic deployment via Netlify
 ### **For New Team Members**
 1. **Read Documentation Order**:
    - Start with `README.md` for overview
-   - Follow `INSTALLATION_GUIDE.md` for setup
-   - Reference `PROJECT_DOCUMENTATION.md` for deep technical details
+   - Follow `Installation_guide.md` for setup
+   - Reference `Project_documentation.md` for deep technical details
 
 2. **Development Setup** (5 minutes):
    ```powershell
@@ -539,7 +539,7 @@ npm run dev          # Everything starts together
 
 ### **Immediate Actions (This Week)**
 1. **Team Setup Sessions**
-   - [ ] All developers run through `INSTALLATION_GUIDE.md`
+   - [ ] All developers run through `Installation_guide.md`
    - [ ] Verify everyone can start `npm run dev` successfully
    - [ ] Test Google OAuth configuration in development
 
