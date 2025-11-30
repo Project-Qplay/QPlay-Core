@@ -23,7 +23,7 @@ const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 const generateUsername = (email) => {
   const base = email.split('@')[0];
   const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substr(2, 5);
+  const random = Math.random().toString(36).slice(2, 7);
   return `${base}_${timestamp}${random}`;
 };
 

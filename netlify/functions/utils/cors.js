@@ -35,12 +35,13 @@ const getCorsHeaders = (requestOrigin, methods = ['GET', 'POST', 'OPTIONS']) => 
   const allowedOrigins = getAllowedOrigins();
   
   // Check if the request origin is in the allowed list
+  // If not allowed, return null origin to block the request
   const origin = allowedOrigins.includes(requestOrigin) 
     ? requestOrigin 
-    : allowedOrigins[0]; // Default to first allowed origin
+    : null;
   
   return {
-    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Origin': origin || '',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': methods.join(', '),
     'Access-Control-Allow-Credentials': 'true'

@@ -58,7 +58,7 @@ exports.handler = async (event, context) => {
 
     // Update last login (optional)
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}`, {
+      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(user.id)}`, {
         method: 'PATCH',
         headers: getSupabaseHeaders(),
         body: JSON.stringify({ last_login: new Date().toISOString() })

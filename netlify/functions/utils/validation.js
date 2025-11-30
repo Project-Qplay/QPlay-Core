@@ -3,9 +3,12 @@
  * Provides validation utilities for API inputs
  */
 
+// Maximum credential length (JWT tokens are typically < 5KB)
+const MAX_CREDENTIAL_LENGTH = 10000;
+
 /**
  * Validate email format
- * Uses a more robust regex pattern that follows RFC 5322 guidelines
+ * Uses a practical regex pattern for common email formats
  * @param {string} email - Email address to validate
  * @returns {boolean} True if email format is valid
  */
@@ -13,7 +16,7 @@ const isValidEmail = (email) => {
   if (!email || typeof email !== 'string') {
     return false;
   }
-  // More comprehensive email regex based on RFC 5322
+  // Practical email validation regex
   // Validates: local-part@domain with proper character restrictions
   const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
   return emailRegex.test(email) && email.length <= 254;
@@ -43,7 +46,7 @@ const isValidCredential = (credential) => {
     return false;
   }
   // Basic check for non-empty string with reasonable length
-  return credential.length > 0 && credential.length < 10000;
+  return credential.length > 0 && credential.length < MAX_CREDENTIAL_LENGTH;
 };
 
 /**
