@@ -40,12 +40,16 @@ const getCorsHeaders = (requestOrigin, methods = ['GET', 'POST', 'OPTIONS']) => 
     ? requestOrigin 
     : null;
   
-  return {
-    'Access-Control-Allow-Origin': origin || '',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': methods.join(', '),
-    'Access-Control-Allow-Credentials': 'true'
-  };
+  return origin
+    ? {
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': methods.join(', '),
+        'Access-Control-Allow-Credentials': 'true'
+      }
+    : {
+        'Access-Control-Allow-Methods': methods.join(', ')
+      };
 };
 
 /**
