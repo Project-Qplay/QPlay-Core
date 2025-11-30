@@ -23,9 +23,10 @@ const enrichLeaderboardWithUserData = async (leaderboardData, SUPABASE_URL) => {
       return leaderboardData.map((entry, index) => ({ ...entry, rank: index + 1 }));
     }
 
-    const userIdsParam = userIds.join(',');
+    // Encode each user ID individually before joining
+    const userIdsParam = userIds.map(id => encodeURIComponent(id)).join(',');
     const userResponse = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?id=in.(${encodeURIComponent(userIdsParam)})&select=id,username,full_name`,
+      `${SUPABASE_URL}/rest/v1/users?id=in.(${userIdsParam})&select=id,username,full_name`,
       { headers: getSupabaseHeaders() }
     );
 

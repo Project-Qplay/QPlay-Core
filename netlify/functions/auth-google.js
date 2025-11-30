@@ -69,7 +69,7 @@ exports.handler = async (event, context) => {
     const avatar_url = payload.picture || '';
 
     // Check if user already exists
-    const checkResponse = await fetch(`${SUPABASE_URL}/rest/v1/users?email=eq.${email}`, {
+    const checkResponse = await fetch(`${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email)}`, {
       headers: getSupabaseHeaders()
     });
 
@@ -92,7 +92,7 @@ exports.handler = async (event, context) => {
     let username = generateUsername(email);
     let usernameExists = true;
     while (usernameExists) {
-      const usernameCheckResponse = await fetch(`${SUPABASE_URL}/rest/v1/users?username=eq.${username}`, {
+      const usernameCheckResponse = await fetch(`${SUPABASE_URL}/rest/v1/users?username=eq.${encodeURIComponent(username)}`, {
         headers: getSupabaseHeaders()
       });
       if (usernameCheckResponse.ok) {
