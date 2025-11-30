@@ -161,7 +161,7 @@ components/
 │   ├── EntanglementBridge.tsx    # Quantum entanglement concepts
 │   ├── ProbabilityBay.tsx        # Probability distributions
 │   ├── QuantumArchive.tsx        # Historical quantum experiments
-│   ├── StateChambrer.tsx         # Quantum state manipulation
+│   ├── StateChamber.tsx          # Quantum state manipulation
 │   ├── SuperpositionTower.tsx    # Superposition principles
 │   └── TunnelingVault.tsx        # Quantum tunneling effects
 │
