@@ -21,7 +21,7 @@ const client = new OAuth2Client(GOOGLE_CLIENT_ID);
  * @returns {string} Generated username
  */
 const generateUsername = (email) => {
-  const base = email.split('@')[0];
+  const base = email.split('@')[0].slice(0, 32); // Limit base to 32 chars to ensure username ≤ 50 chars
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).slice(2, 7);
   return `${base}_${timestamp}${random}`;
