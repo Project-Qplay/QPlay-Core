@@ -3,34 +3,28 @@
  * Replaces Flask game session endpoints
  */
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS'
-};
-
-// Supabase helpers
-const getSupabaseHeaders = () => ({
-  'apikey': SUPABASE_ANON_KEY,
-  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-  'Content-Type': 'application/json',
-  'Prefer': 'return=representation'
-});
+const { getCorsHeaders, handleCorsPreflightRequest } = require('./utils/cors');
+const { validateSupabaseConfig, getSupabaseHeaders, getSupabaseUrl } = require('./utils/supabase');
+const { isValidUserId, isValidSessionId } = require('./utils/validation');
+const { createErrorResponse, ErrorMessages } = require('./utils/errors');
 
 exports.handler = async (event, context) => {
+  const requestOrigin = event.headers.origin || event.headers.Origin || '';
+  const corsHeaders = getCorsHeaders(requestOrigin, ['GET', 'POST', 'PATCH', 'OPTIONS']);
+  
   // Handle CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: ''
-    };
+  const preflightResponse = handleCorsPreflightRequest(event, ['GET', 'POST', 'PATCH', 'OPTIONS']);
+  if (preflightResponse) {
+    return preflightResponse;
   }
 
+  // Validate Supabase configuration
+  const configValidation = validateSupabaseConfig();
+  if (!configValidation.isValid) {
+    return createErrorResponse(500, ErrorMessages.CONFIGURATION_ERROR, corsHeaders);
+  }
+
+  const SUPABASE_URL = getSupabaseUrl();
   const path = event.path;
   const method = event.httpMethod;
 
@@ -38,6 +32,11 @@ exports.handler = async (event, context) => {
     // Start game session
     if (path.includes('/game/start') && method === 'POST') {
       const { user_id, difficulty = 'easy' } = JSON.parse(event.body);
+
+      // Validate user_id if provided
+      if (user_id && !isValidUserId(user_id)) {
+        return createErrorResponse(400, ErrorMessages.INVALID_USER_ID, corsHeaders);
+      }
 
       const gameSession = {
         user_id: user_id,
@@ -96,20 +95,27 @@ exports.handler = async (event, context) => {
         current_total_playtime = 0
       } = JSON.parse(event.body);
 
+      // Validate user_id
+      if (user_id && !isValidUserId(user_id)) {
+        return createErrorResponse(400, ErrorMessages.INVALID_USER_ID, corsHeaders);
+      }
+
       // Update user stats
-      try {
-        await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user_id}`, {
-          method: 'PATCH',
-          headers: getSupabaseHeaders(),
-          body: JSON.stringify({
-            games_completed: current_games_completed + 1,
-            total_score: current_total_score + total_score,
-            total_playtime: current_total_playtime + completion_time,
-            last_login: new Date().toISOString()
-          })
-        });
-      } catch (error) {
-        console.warn('Failed to update user stats:', error);
+      if (user_id) {
+        try {
+          await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(user_id)}`, {
+            method: 'PATCH',
+            headers: getSupabaseHeaders(),
+            body: JSON.stringify({
+              games_completed: current_games_completed + 1,
+              total_score: current_total_score + total_score,
+              total_playtime: current_total_playtime + completion_time,
+              last_login: new Date().toISOString()
+            })
+          });
+        } catch (error) {
+          console.warn('Failed to update user stats:', error);
+        }
       }
 
       // Create leaderboard entry
@@ -136,18 +142,20 @@ exports.handler = async (event, context) => {
       }
 
       // Update game session as completed
-      try {
-        await fetch(`${SUPABASE_URL}/rest/v1/game_sessions?id=eq.${session_id}`, {
-          method: 'PATCH',
-          headers: getSupabaseHeaders(),
-          body: JSON.stringify({
-            completed_at: new Date().toISOString(),
-            total_time: completion_time,
-            is_completed: true
-          })
-        });
-      } catch (error) {
-        console.warn('Failed to update game session:', error);
+      if (session_id && isValidSessionId(session_id)) {
+        try {
+          await fetch(`${SUPABASE_URL}/rest/v1/game_sessions?id=eq.${encodeURIComponent(session_id)}`, {
+            method: 'PATCH',
+            headers: getSupabaseHeaders(),
+            body: JSON.stringify({
+              completed_at: new Date().toISOString(),
+              total_time: completion_time,
+              is_completed: true
+            })
+          });
+        } catch (error) {
+          console.warn('Failed to update game session:', error);
+        }
       }
 
       return {
@@ -173,19 +181,21 @@ exports.handler = async (event, context) => {
         room_scores = {}
       } = JSON.parse(event.body);
 
-      try {
-        await fetch(`${SUPABASE_URL}/rest/v1/game_sessions?id=eq.${session_id}`, {
-          method: 'PATCH',
-          headers: getSupabaseHeaders(),
-          body: JSON.stringify({
-            current_room: current_room,
-            room_times: room_times,
-            room_attempts: room_attempts,
-            room_scores: room_scores
-          })
-        });
-      } catch (error) {
-        console.warn('Failed to save progress:', error);
+      if (session_id && isValidSessionId(session_id)) {
+        try {
+          await fetch(`${SUPABASE_URL}/rest/v1/game_sessions?id=eq.${encodeURIComponent(session_id)}`, {
+            method: 'PATCH',
+            headers: getSupabaseHeaders(),
+            body: JSON.stringify({
+              current_room: current_room,
+              room_times: room_times,
+              room_attempts: room_attempts,
+              room_scores: room_scores
+            })
+          });
+        } catch (error) {
+          console.warn('Failed to save progress:', error);
+        }
       }
 
       return {
@@ -198,18 +208,10 @@ exports.handler = async (event, context) => {
       };
     }
 
-    return {
-      statusCode: 404,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: 'Endpoint not found' })
-    };
+    return createErrorResponse(404, ErrorMessages.NOT_FOUND, corsHeaders);
 
   } catch (error) {
     console.error('Game session error:', error);
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: error.message })
-    };
+    return createErrorResponse(500, ErrorMessages.SERVER_ERROR, corsHeaders, error);
   }
 };

@@ -3,90 +3,62 @@
  * Replaces Flask /api/auth/login endpoint
  */
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-};
-
-// Supabase helpers
-const getSupabaseHeaders = () => ({
-  'apikey': SUPABASE_ANON_KEY,
-  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-  'Content-Type': 'application/json',
-  'Prefer': 'return=representation'
-});
+const { getCorsHeaders, handleCorsPreflightRequest } = require('./utils/cors');
+const { validateSupabaseConfig, getSupabaseHeaders, getSupabaseUrl } = require('./utils/supabase');
+const { isValidEmail } = require('./utils/validation');
+const { createErrorResponse, ErrorMessages } = require('./utils/errors');
 
 exports.handler = async (event, context) => {
+  const requestOrigin = event.headers.origin || event.headers.Origin || '';
+  const corsHeaders = getCorsHeaders(requestOrigin, ['POST', 'OPTIONS']);
+  
   // Handle CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: ''
-    };
+  const preflightResponse = handleCorsPreflightRequest(event, ['POST', 'OPTIONS']);
+  if (preflightResponse) {
+    return preflightResponse;
   }
 
   if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers: corsHeaders,
-      body: JSON.stringify({ success: false, error: 'Method not allowed' })
-    };
+    return createErrorResponse(405, ErrorMessages.METHOD_NOT_ALLOWED, corsHeaders);
   }
+
+  // Validate Supabase configuration
+  const configValidation = validateSupabaseConfig();
+  if (!configValidation.isValid) {
+    return createErrorResponse(500, ErrorMessages.CONFIGURATION_ERROR, corsHeaders);
+  }
+
+  const SUPABASE_URL = getSupabaseUrl();
 
   try {
     const { email } = JSON.parse(event.body);
     
-    if (!email) {
-      return {
-        statusCode: 400,
-        headers: corsHeaders,
-        body: JSON.stringify({
-          success: false,
-          error: 'Email is required'
-        })
-      };
+    // Validate email format
+    if (!isValidEmail(email)) {
+      return createErrorResponse(400, ErrorMessages.INVALID_EMAIL, corsHeaders);
     }
 
     // Find user by email
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/users?email=eq.${email}`, {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email)}`, {
       headers: getSupabaseHeaders()
     });
 
     if (!response.ok) {
-      return {
-        statusCode: 500,
-        headers: corsHeaders,
-        body: JSON.stringify({
-          success: false,
-          error: 'Database connection failed'
-        })
-      };
+      console.error('Database query failed:', response.status);
+      return createErrorResponse(500, ErrorMessages.SERVER_ERROR, corsHeaders);
     }
 
     const users = await response.json();
     
     if (users.length === 0) {
-      return {
-        statusCode: 404,
-        headers: corsHeaders,
-        body: JSON.stringify({
-          success: false,
-          error: 'User not found'
-        })
-      };
+      return createErrorResponse(404, ErrorMessages.USER_NOT_FOUND, corsHeaders);
     }
 
     const user = users[0];
 
     // Update last login (optional)
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}`, {
+      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(user.id)}`, {
         method: 'PATCH',
         headers: getSupabaseHeaders(),
         body: JSON.stringify({ last_login: new Date().toISOString() })
@@ -106,13 +78,6 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('Login error:', error);
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({
-        success: false,
-        error: `Login failed: ${error.message}`
-      })
-    };
+    return createErrorResponse(500, ErrorMessages.SERVER_ERROR, corsHeaders, error);
   }
 };

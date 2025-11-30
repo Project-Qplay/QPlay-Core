@@ -3,41 +3,32 @@
  * Replaces Flask achievement endpoints
  */
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-};
-
-// Supabase helpers
-const getSupabaseHeaders = () => ({
-  'apikey': SUPABASE_ANON_KEY,
-  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-  'Content-Type': 'application/json',
-  'Prefer': 'return=representation'
-});
+const { getCorsHeaders, handleCorsPreflightRequest } = require('./utils/cors');
+const { validateSupabaseConfig, getSupabaseHeaders, getSupabaseUrl } = require('./utils/supabase');
+const { isValidUserId, isValidSessionId } = require('./utils/validation');
+const { createErrorResponse, ErrorMessages } = require('./utils/errors');
 
 exports.handler = async (event, context) => {
+  const requestOrigin = event.headers.origin || event.headers.Origin || '';
+  const corsHeaders = getCorsHeaders(requestOrigin, ['POST', 'OPTIONS']);
+  
   // Handle CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: ''
-    };
+  const preflightResponse = handleCorsPreflightRequest(event, ['POST', 'OPTIONS']);
+  if (preflightResponse) {
+    return preflightResponse;
   }
 
   if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
+    return createErrorResponse(405, ErrorMessages.METHOD_NOT_ALLOWED, corsHeaders);
   }
+
+  // Validate Supabase configuration
+  const configValidation = validateSupabaseConfig();
+  if (!configValidation.isValid) {
+    return createErrorResponse(500, ErrorMessages.CONFIGURATION_ERROR, corsHeaders);
+  }
+
+  const SUPABASE_URL = getSupabaseUrl();
 
   try {
     const { achievement_id, session_id, user_id } = JSON.parse(event.body);
@@ -46,9 +37,14 @@ exports.handler = async (event, context) => {
 
     // If user_id not provided, try to get from session
     if (!resolvedUserId && session_id) {
+      // Validate session_id format
+      if (!isValidSessionId(session_id)) {
+        return createErrorResponse(400, ErrorMessages.VALIDATION_ERROR, corsHeaders);
+      }
+
       try {
         const sessionResponse = await fetch(
-          `${SUPABASE_URL}/rest/v1/game_sessions?id=eq.${session_id}&select=user_id`,
+          `${SUPABASE_URL}/rest/v1/game_sessions?id=eq.${encodeURIComponent(session_id)}&select=user_id`,
           { headers: getSupabaseHeaders() }
         );
         
@@ -63,12 +59,9 @@ exports.handler = async (event, context) => {
       }
     }
 
-    if (!resolvedUserId) {
-      return {
-        statusCode: 400,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: 'User ID required' })
-      };
+    // Validate user ID format
+    if (!resolvedUserId || !isValidUserId(resolvedUserId)) {
+      return createErrorResponse(400, ErrorMessages.INVALID_USER_ID, corsHeaders);
     }
 
     // Create achievement record
@@ -102,10 +95,6 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('Achievement unlock error:', error);
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: error.message })
-    };
+    return createErrorResponse(500, ErrorMessages.SERVER_ERROR, corsHeaders, error);
   }
 };
