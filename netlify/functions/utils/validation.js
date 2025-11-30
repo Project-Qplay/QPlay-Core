@@ -45,8 +45,9 @@ const isValidCredential = (credential) => {
   if (!credential || typeof credential !== 'string') {
     return false;
   }
-  // Basic check for non-empty string with reasonable length
-  return credential.length > 0 && credential.length < MAX_CREDENTIAL_LENGTH;
+  // JWT tokens have three base64url-encoded parts separated by dots
+  const jwtPattern = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+  return jwtPattern.test(credential) && credential.length < MAX_CREDENTIAL_LENGTH;
 };
 
 /**
