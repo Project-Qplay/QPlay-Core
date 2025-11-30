@@ -52,7 +52,12 @@ const getSupabaseHeaders = (useServiceKey = false) => {
  * Get the Supabase URL
  * @returns {string} Supabase URL
  */
-const getSupabaseUrl = () => SUPABASE_URL;
+const getSupabaseUrl = () => {
+  if (!SUPABASE_URL) {
+    throw new Error('SUPABASE_URL not configured');
+  }
+  return SUPABASE_URL;
+};
 
 module.exports = {
   validateSupabaseConfig,
