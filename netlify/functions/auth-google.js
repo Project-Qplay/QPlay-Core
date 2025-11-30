@@ -4,66 +4,57 @@
  */
 
 const { OAuth2Client } = require('google-auth-library');
+const { getCorsHeaders, handleCorsPreflightRequest } = require('./utils/cors');
+const { validateSupabaseConfig, getSupabaseHeaders, getSupabaseUrl } = require('./utils/supabase');
+const { isValidCredential } = require('./utils/validation');
+const { createErrorResponse, ErrorMessages } = require('./utils/errors');
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 // Google OAuth client
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-};
-
-// Supabase helpers
-const getSupabaseHeaders = (useServiceKey = false) => {
-  const key = useServiceKey ? SUPABASE_SERVICE_KEY : SUPABASE_ANON_KEY;
-  return {
-    'apikey': key,
-    'Authorization': `Bearer ${key}`,
-    'Content-Type': 'application/json',
-    'Prefer': 'return=representation'
-  };
-};
-
+/**
+ * Generate a unique username with timestamp and random suffix
+ * More robust than simple random suffix to avoid collisions
+ * @param {string} email - User's email address
+ * @returns {string} Generated username
+ */
 const generateUsername = (email) => {
   const base = email.split('@')[0];
-  const suffix = Math.floor(1000 + Math.random() * 9000).toString();
-  return `${base}_${suffix}`;
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substr(2, 5);
+  return `${base}_${timestamp}${random}`;
 };
 
 exports.handler = async (event, context) => {
+  const requestOrigin = event.headers.origin || event.headers.Origin || '';
+  const corsHeaders = getCorsHeaders(requestOrigin, ['POST', 'OPTIONS']);
+  
   // Handle CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: ''
-    };
+  const preflightResponse = handleCorsPreflightRequest(event, ['POST', 'OPTIONS']);
+  if (preflightResponse) {
+    return preflightResponse;
   }
 
   if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers: corsHeaders,
-      body: JSON.stringify({ success: false, error: 'Method not allowed' })
-    };
+    return createErrorResponse(405, ErrorMessages.METHOD_NOT_ALLOWED, corsHeaders);
   }
+
+  // Validate Supabase configuration
+  const configValidation = validateSupabaseConfig();
+  if (!configValidation.isValid) {
+    return createErrorResponse(500, ErrorMessages.CONFIGURATION_ERROR, corsHeaders);
+  }
+
+  const SUPABASE_URL = getSupabaseUrl();
 
   try {
     const { credential } = JSON.parse(event.body);
 
-    if (!credential) {
-      return {
-        statusCode: 400,
-        headers: corsHeaders,
-        body: JSON.stringify({ success: false, error: 'Missing credential' })
-      };
+    // Validate credential format
+    if (!isValidCredential(credential)) {
+      return createErrorResponse(400, ErrorMessages.INVALID_CREDENTIAL, corsHeaders);
     }
 
     // Verify Google token
@@ -140,14 +131,8 @@ exports.handler = async (event, context) => {
     });
 
     if (!createUserResponse.ok) {
-      return {
-        statusCode: 500,
-        headers: corsHeaders,
-        body: JSON.stringify({
-          success: false,
-          error: `Failed to create user. Status: ${createUserResponse.status}`
-        })
-      };
+      console.error('Failed to create user:', createUserResponse.status);
+      return createErrorResponse(500, ErrorMessages.SERVER_ERROR, corsHeaders);
     }
 
     const createdUser = await createUserResponse.json();
@@ -187,13 +172,6 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('Google auth error:', error);
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({
-        success: false,
-        error: `Unexpected error: ${error.message}`
-      })
-    };
+    return createErrorResponse(500, ErrorMessages.SERVER_ERROR, corsHeaders, error);
   }
 };

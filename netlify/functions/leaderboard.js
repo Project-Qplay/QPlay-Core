@@ -3,51 +3,52 @@
  * Replaces Flask leaderboard endpoints
  */
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const { getCorsHeaders, handleCorsPreflightRequest } = require('./utils/cors');
+const { validateSupabaseConfig, getSupabaseHeaders, getSupabaseUrl } = require('./utils/supabase');
+const { createErrorResponse, ErrorMessages } = require('./utils/errors');
 
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS'
-};
-
-// Supabase helpers
-const getSupabaseHeaders = () => ({
-  'apikey': SUPABASE_ANON_KEY,
-  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-  'Content-Type': 'application/json'
-});
-
-// Enrich leaderboard with user data
-const enrichLeaderboardWithUserData = async (leaderboardData) => {
-  const enriched = [];
-  
-  for (let i = 0; i < leaderboardData.length; i++) {
-    const entry = { ...leaderboardData[i], rank: i + 1 };
-    
-    try {
-      const userResponse = await fetch(
-        `${SUPABASE_URL}/rest/v1/users?id=eq.${entry.user_id}&select=username,full_name`,
-        { headers: getSupabaseHeaders() }
-      );
-      
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        if (userData.length > 0) {
-          entry.username = userData[0].username;
-          entry.full_name = userData[0].full_name;
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to fetch user data for entry:', entry.user_id);
-    }
-    
-    enriched.push(entry);
+/**
+ * Enrich leaderboard with user data using batch fetch
+ * Optimized to avoid N+1 query pattern
+ */
+const enrichLeaderboardWithUserData = async (leaderboardData, SUPABASE_URL) => {
+  if (leaderboardData.length === 0) {
+    return [];
   }
-  
-  return enriched;
+
+  try {
+    // Batch fetch all user data in a single query
+    const userIds = leaderboardData.map(entry => entry.user_id).filter(Boolean);
+    if (userIds.length === 0) {
+      return leaderboardData.map((entry, index) => ({ ...entry, rank: index + 1 }));
+    }
+
+    const userIdsParam = userIds.join(',');
+    const userResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/users?id=in.(${encodeURIComponent(userIdsParam)})&select=id,username,full_name`,
+      { headers: getSupabaseHeaders() }
+    );
+
+    if (userResponse.ok) {
+      const users = await userResponse.json();
+      const userMap = users.reduce((acc, user) => ({ ...acc, [user.id]: user }), {});
+
+      return leaderboardData.map((entry, index) => ({
+        ...entry,
+        rank: index + 1,
+        username: userMap[entry.user_id]?.username,
+        full_name: userMap[entry.user_id]?.full_name
+      }));
+    }
+  } catch (error) {
+    console.warn('Failed to fetch user data for leaderboard:', error);
+  }
+
+  // Fallback: return leaderboard without user enrichment
+  return leaderboardData.map((entry, index) => ({
+    ...entry,
+    rank: index + 1
+  }));
 };
 
 // Demo data fallback
@@ -64,23 +65,26 @@ const getDemoSpeedLeaderboard = () => ([
 ]);
 
 exports.handler = async (event, context) => {
+  const requestOrigin = event.headers.origin || event.headers.Origin || '';
+  const corsHeaders = getCorsHeaders(requestOrigin, ['GET', 'OPTIONS']);
+  
   // Handle CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: corsHeaders,
-      body: ''
-    };
+  const preflightResponse = handleCorsPreflightRequest(event, ['GET', 'OPTIONS']);
+  if (preflightResponse) {
+    return preflightResponse;
   }
 
   if (event.httpMethod !== 'GET') {
-    return {
-      statusCode: 405,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
+    return createErrorResponse(405, ErrorMessages.METHOD_NOT_ALLOWED, corsHeaders);
   }
 
+  // Validate Supabase configuration
+  const configValidation = validateSupabaseConfig();
+  if (!configValidation.isValid) {
+    return createErrorResponse(500, ErrorMessages.CONFIGURATION_ERROR, corsHeaders);
+  }
+
+  const SUPABASE_URL = getSupabaseUrl();
   const path = event.path;
   const queryParams = event.queryStringParameters || {};
   const leaderboardType = queryParams.type || 'score';
@@ -99,7 +103,7 @@ exports.handler = async (event, context) => {
           const leaderboardData = await response.json();
           
           if (leaderboardData.length > 0) {
-            const enriched = await enrichLeaderboardWithUserData(leaderboardData);
+            const enriched = await enrichLeaderboardWithUserData(leaderboardData, SUPABASE_URL);
             return {
               statusCode: 200,
               headers: corsHeaders,
@@ -171,7 +175,7 @@ exports.handler = async (event, context) => {
           const leaderboardData = await response.json();
           
           if (leaderboardData.length > 0) {
-            const enriched = await enrichLeaderboardWithUserData(leaderboardData);
+            const enriched = await enrichLeaderboardWithUserData(leaderboardData, SUPABASE_URL);
             return {
               statusCode: 200,
               headers: corsHeaders,
@@ -199,18 +203,10 @@ exports.handler = async (event, context) => {
       };
     }
 
-    return {
-      statusCode: 404,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: 'Leaderboard endpoint not found' })
-    };
+    return createErrorResponse(404, ErrorMessages.NOT_FOUND, corsHeaders);
 
   } catch (error) {
     console.error('Leaderboard error:', error);
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: error.message })
-    };
+    return createErrorResponse(500, ErrorMessages.SERVER_ERROR, corsHeaders, error);
   }
 };
