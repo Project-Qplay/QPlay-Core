@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Build directories
+apps/web/dist
+apps/web/dist-ssr
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -41,3 +45,5 @@ vite.config.ts
 
 # Python stuff
 venv
+# Local Netlify folder
+.netlify
