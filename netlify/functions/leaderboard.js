@@ -19,12 +19,15 @@ const enrichLeaderboardWithUserData = async (leaderboardData, SUPABASE_URL) => {
   try {
     // Batch fetch all user data in a single query
     const userIds = leaderboardData.map(entry => entry.user_id).filter(Boolean);
-    if (userIds.length === 0) {
+
+    // De-duplicate user IDs to avoid bloated query strings and redundant lookups
+    const uniqueUserIds = [...new Set(userIds)];
+    if (uniqueUserIds.length === 0) {
       return leaderboardData.map((entry, index) => ({ ...entry, rank: index + 1 }));
     }
 
-    // Encode each user ID individually before joining
-    const userIdsParam = userIds.map(id => encodeURIComponent(id)).join(',');
+    // Encode each unique user ID individually before joining
+    const userIdsParam = uniqueUserIds.map(id => encodeURIComponent(id)).join(',');
     const userResponse = await fetch(
       `${SUPABASE_URL}/rest/v1/users?id=in.(${userIdsParam})&select=id,username,full_name`,
       { headers: getSupabaseHeaders() }
