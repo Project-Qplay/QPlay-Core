@@ -36,7 +36,19 @@ npm run dev
 - **Backend**: Netlify Functions (serverless)
 - **Database**: Supabase (PostgreSQL)
 - **Authentication**: Supabase Auth + Google OAuth
-- **Deployment**: Netlify Edge Functions
+- **Deployment**: Netlify
+
+## ⚡ Netlify Functions (API)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/auth-login` | POST | Email-based login |
+| `/auth-signup` | POST | User registration |
+| `/auth-google` | POST | Google OAuth sign-in |
+| `/game-session` | POST | Start/save/complete game sessions |
+| `/leaderboard` | GET | Fetch score/speed leaderboards |
+| `/achievements` | POST | Unlock achievements |
+| `/quantum-measurements` | POST | Log quantum measurements |
 
 ## 📋 Available Scripts
 
@@ -53,7 +65,15 @@ npm run dev
 ```
 QPlay-Core/
 ├── 🎨 apps/web/           # React frontend (300MB+ node_modules)
-├── ⚡ netlify/functions/  # Serverless backend (10MB node_modules)
+├── ⚡ netlify/functions/  # Serverless backend (7 functions)
+│   ├── auth-login.js      # Email login
+│   ├── auth-signup.js     # User registration
+│   ├── auth-google.js     # Google OAuth
+│   ├── game-session.js    # Game state management
+│   ├── leaderboard.js     # Leaderboard queries
+│   ├── achievements.js    # Achievement tracking
+│   ├── quantum-measurements.js  # Quantum data logging
+│   └── utils/             # Shared utilities (cors, supabase, validation)
 ├── 🔧 .env               # Environment variables
 ├── 📄 netlify.toml       # Netlify deployment config
 ├── 📚 Project_documentation.md  # Complete documentation
@@ -84,7 +104,7 @@ The comprehensive documentation includes:
 
 - **📚 [Full Documentation](./Project_documentation.md)** - Complete setup and development guide
 - **🔧 [Installation Guide](./Installation_guide.md)** - Step-by-step installation & troubleshooting
-- **🌐 Live Demo**: Coming soon
+- **🌐 [Live Demo](https://quantum-escape.netlify.app/)** - Try it now!
 - **📊 Project Status**: Active development
 - **🤝 Contributing**: See documentation for guidelines
 

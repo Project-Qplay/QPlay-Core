@@ -5,7 +5,7 @@
 
 const { OAuth2Client } = require('google-auth-library');
 const { getCorsHeaders, handleCorsPreflightRequest } = require('./utils/cors');
-const { validateSupabaseConfig, getSupabaseHeaders, getSupabaseUrl } = require('./utils/supabase');
+const { validateServiceKeyConfig, getSupabaseHeaders, getSupabaseUrl } = require('./utils/supabase');
 const { isValidCredential } = require('./utils/validation');
 const { createErrorResponse, ErrorMessages } = require('./utils/errors');
 
@@ -30,7 +30,7 @@ const generateUsername = (email) => {
 exports.handler = async (event, context) => {
   const requestOrigin = event.headers.origin || event.headers.Origin || '';
   const corsHeaders = getCorsHeaders(requestOrigin, ['POST', 'OPTIONS']);
-  
+
   // Handle CORS preflight
   const preflightResponse = handleCorsPreflightRequest(event, ['POST', 'OPTIONS']);
   if (preflightResponse) {
@@ -41,8 +41,8 @@ exports.handler = async (event, context) => {
     return createErrorResponse(405, ErrorMessages.METHOD_NOT_ALLOWED, corsHeaders);
   }
 
-  // Validate Supabase configuration
-  const configValidation = validateSupabaseConfig();
+  // Validate Supabase configuration (including SERVICE_KEY since we create users)
+  const configValidation = validateServiceKeyConfig();
   if (!configValidation.isValid) {
     return createErrorResponse(500, ErrorMessages.CONFIGURATION_ERROR, corsHeaders);
   }

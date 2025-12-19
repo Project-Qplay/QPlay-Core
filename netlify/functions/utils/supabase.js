@@ -16,12 +16,38 @@ const validateSupabaseConfig = () => {
     console.error('Missing required environment variable: SUPABASE_URL');
     return { isValid: false, error: 'Service configuration error' };
   }
-  
+
   if (!SUPABASE_ANON_KEY) {
     console.error('Missing required environment variable: SUPABASE_ANON_KEY');
     return { isValid: false, error: 'Service configuration error' };
   }
-  
+
+  return { isValid: true, error: null };
+};
+
+/**
+ * Check if SERVICE_KEY is configured (for service-level operations)
+ * @returns {boolean} True if SERVICE_KEY is available
+ */
+const hasServiceKey = () => {
+  return !!SUPABASE_SERVICE_KEY;
+};
+
+/**
+ * Validate that SERVICE_KEY is configured (call before using getSupabaseHeaders(true))
+ * @returns {Object} Validation result with isValid and error properties
+ */
+const validateServiceKeyConfig = () => {
+  const basicValidation = validateSupabaseConfig();
+  if (!basicValidation.isValid) {
+    return basicValidation;
+  }
+
+  if (!SUPABASE_SERVICE_KEY) {
+    console.error('Missing required environment variable: SUPABASE_SERVICE_KEY');
+    return { isValid: false, error: 'Service configuration error' };
+  }
+
   return { isValid: true, error: null };
 };
 
@@ -33,13 +59,13 @@ const validateSupabaseConfig = () => {
  */
 const getSupabaseHeaders = (useServiceKey = false) => {
   const key = useServiceKey ? SUPABASE_SERVICE_KEY : SUPABASE_ANON_KEY;
-  
+
   if (!key) {
     const keyType = useServiceKey ? 'SUPABASE_SERVICE_KEY' : 'SUPABASE_ANON_KEY';
     console.error(`Missing required environment variable: ${keyType}`);
     throw new Error('Supabase key not configured');
   }
-  
+
   return {
     'apikey': key,
     'Authorization': `Bearer ${key}`,
@@ -61,6 +87,9 @@ const getSupabaseUrl = () => {
 
 module.exports = {
   validateSupabaseConfig,
+  validateServiceKeyConfig,
+  hasServiceKey,
   getSupabaseHeaders,
   getSupabaseUrl
 };
+
