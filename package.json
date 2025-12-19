@@ -1,46 +1,26 @@
 {
-  "name": "quantum-quest-escape-room",
-  "private": true,
+  "name": "qplay-core",
   "version": "1.0.0",
+  "description": "QPlay Core - Quantum Physics Learning Game",
+  "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "backend": "cd backend && python run.py",
-    "dev:full": "concurrently \"npm run backend\" \"npm run dev\"",
-    "setup:backend": "cd backend && python -m venv venv && source venv/bin/activate && pip install -r requirements.txt",
-    "supabase:setup": "echo 'Please run the SQL migration in your Supabase dashboard from supabase/migrations/001_initial_schema.sql'",
-    "setup:complete": "npm install && npm run setup:backend && npm run supabase:setup"
+    "dev": "netlify dev",
+    "build": "npm run install:all && cd apps/web && npm run build",
+    "preview": "cd apps/web && npm run preview",
+    "install:all": "cd apps/web && npm install && cd ../../netlify/functions && npm install"
   },
-  "dependencies": {
-    "@react-oauth/google": "^0.12.2",
-    "@react-three/drei": "^9.99.4",
-    "@react-three/fiber": "^8.13.6",
-    "framer-motion": "^11.0.3",
-    "lucide-react": "^0.344.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-hot-toast": "^2.5.2",
-    "three": "0.151.3"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.9.1",
-    "@types/node": "^24.1.0",
-    "@types/react": "^18.3.5",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.18",
-    "concurrently": "^8.2.2",
-    "eslint": "^9.9.1",
-    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
-    "eslint-plugin-react-refresh": "^0.4.11",
-    "globals": "^15.9.0",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5.5.3",
-    "typescript-eslint": "^8.3.0",
-    "vite": "^5.4.2"
-  }
+  "keywords": [
+    "quantum-physics",
+    "education",
+    "game",
+    "react",
+    "three.js"
+  ],
+  "author": "QPlay Team",
+  "license": "MIT"
 }

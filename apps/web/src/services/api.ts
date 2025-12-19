@@ -1,15 +1,30 @@
 /**
  * API Service for Quantum Quest Frontend
- * Handles all communication with the Supabase-powered backend
+ * Handles all communication with Netlify Functions and Supabase
  */
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
+// Use Netlify Functions for API endpoints
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || (
+  import.meta.env.MODE === 'development'
+    ? 'http://localhost:8888/.netlify/functions' // Netlify dev server
+    : '/.netlify/functions' // Production Netlify Functions
+);
 
+// Response from auth functions (Netlify Functions style)
+interface AuthResponse {
+  success: boolean;
+  message?: string;
+  user?: any;
+  error?: string;
+}
+
+// Legacy type for compatibility (access_token is optional now)
 interface SignInResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
+  access_token?: string;
+  token_type?: string;
+  expires_in?: number;
   user: any;
+  success?: boolean;
 }
 
 interface SignUpData {
@@ -40,7 +55,7 @@ class ApiService {
 
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     const defaultOptions: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -52,12 +67,12 @@ class ApiService {
 
     try {
       const response = await fetch(url, defaultOptions);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error(`API request failed: ${endpoint}`, error);
@@ -65,33 +80,44 @@ class ApiService {
     }
   }
 
-  // Authentication API calls (Supabase-powered)
-  async signIn(email: string, password: string): Promise<SignInResponse> {
-    const response = await this.request('/api/auth/signin', {
+  // Authentication API calls (Netlify Functions)
+  // NOTE: Current backend uses simplified email-lookup auth (no password verification)
+  // For production, use Supabase Auth, OAuth, or implement password hashing
+  async signIn(email: string, _password?: string): Promise<SignInResponse> {
+    // Password parameter is unused - backend only does email lookup
+    // This is intentional for demo purposes
+    const response = await this.request('/auth-login', {
       method: 'POST',
-      body: JSON.stringify({ email, password })
-    });
-    
-    // Store token automatically
-    if (response.access_token) {
-      this.setAuthToken(response.access_token);
+      body: JSON.stringify({ email })
+    }) as AuthResponse;
+
+    // Backend returns { success, user } without access_token
+    // Store user ID as simple session identifier if needed
+    if (response.success && response.user?.id) {
+      this.setAuthToken(response.user.id);
     }
-    
-    return response;
+
+    return {
+      user: response.user,
+      success: response.success
+    };
   }
 
   async signUp(data: SignUpData): Promise<SignInResponse> {
-    const response = await this.request('/api/auth/signup', {
+    const response = await this.request('/auth-signup', {
       method: 'POST',
       body: JSON.stringify(data)
-    });
-    
-    // Store token automatically
-    if (response.access_token) {
-      this.setAuthToken(response.access_token);
+    }) as AuthResponse;
+
+    // Backend returns { success, user } without access_token
+    if (response.success && response.user?.id) {
+      this.setAuthToken(response.user.id);
     }
-    
-    return response;
+
+    return {
+      user: response.user,
+      success: response.success
+    };
   }
 
   async getCurrentUser() {
@@ -125,15 +151,15 @@ class ApiService {
   async getSpeedLeaderboard(limit: number = 50, difficulty?: string) {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (difficulty) params.append('difficulty', difficulty);
-    
-    return this.request(`/api/leaderboard/speed?${params}`);
+
+    return this.request(`/leaderboard?type=speed&${params}`);
   }
 
   async getScoreLeaderboard(limit: number = 50, difficulty?: string) {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (difficulty) params.append('difficulty', difficulty);
-    
-    return this.request(`/api/leaderboard/score?${params}`);
+
+    return this.request(`/leaderboard?type=score&${params}`);
   }
 
   async getMasteryLeaderboard(limit: number = 50) {
@@ -152,11 +178,12 @@ class ApiService {
     });
   }
 
-  // Game Session API calls - Updated to match backend endpoints
+  // Game Session API calls - Updated to match Netlify Functions
   async startGameSession(userId: string, difficulty: string = 'easy') {
-    return this.request('/api/game/start', {
+    return this.request('/game-session', {
       method: 'POST',
       body: JSON.stringify({
+        mode: 'start',
         user_id: userId,
         difficulty: difficulty
       })
@@ -164,9 +191,10 @@ class ApiService {
   }
 
   async saveGameProgress(sessionId: string, currentRoom: string, roomTimes: any, roomAttempts: any, roomScores?: any) {
-    return this.request('/api/game/save-progress', {
+    return this.request('/game-session', {
       method: 'POST',
       body: JSON.stringify({
+        mode: 'save-progress',
         session_id: sessionId,
         current_room: currentRoom,
         room_times: roomTimes,
@@ -177,9 +205,10 @@ class ApiService {
   }
 
   async completeGameSession(sessionId: string, userId: string, completionTime: number, totalScore: number, roomsCompleted: number, hintsUsed: number = 0, difficulty: string = 'easy') {
-    return this.request('/api/game/complete', {
+    return this.request('/game-session', {
       method: 'POST',
       body: JSON.stringify({
+        mode: 'complete',
         session_id: sessionId,
         user_id: userId,
         completion_time: completionTime,
@@ -198,17 +227,17 @@ class ApiService {
       console.warn('User ID required to fetch game sessions');
       return [];
     }
-    
+
     try {
       // Direct Supabase REST API call to get user's sessions
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
+
       if (!supabaseUrl || !supabaseKey) {
         console.warn('Supabase environment variables not configured');
         return [];
       }
-      
+
       const response = await fetch(`${supabaseUrl}/rest/v1/game_sessions?user_id=eq.${userId}&order=started_at.desc`, {
         headers: {
           'apikey': supabaseKey,
@@ -216,7 +245,7 @@ class ApiService {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         return await response.json();
       } else {
@@ -276,7 +305,7 @@ class ApiService {
   }
 
   async logQuantumMeasurement(sessionId: string, roomId: string, measurementType: string, measurementData: any) {
-    return this.request('/api/quantum/measurements', {
+    return this.request('/quantum-measurements', {
       method: 'POST',
       body: JSON.stringify({
         session_id: sessionId,
@@ -288,7 +317,7 @@ class ApiService {
   }
 
   async unlockAchievement(achievementId: string, sessionId?: string, userId?: string) {
-    return this.request('/api/achievements/unlock', {
+    return this.request('/achievements', {
       method: 'POST',
       body: JSON.stringify({
         achievement_id: achievementId,
