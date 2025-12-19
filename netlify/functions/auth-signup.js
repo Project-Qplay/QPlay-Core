@@ -4,14 +4,15 @@
  */
 
 const { getCorsHeaders, handleCorsPreflightRequest } = require('./utils/cors');
-const { validateSupabaseConfig, getSupabaseHeaders, getSupabaseUrl } = require('./utils/supabase');
+// Use validateServiceKeyConfig since we write to users table
+const { validateServiceKeyConfig, getSupabaseHeaders, getSupabaseUrl } = require('./utils/supabase');
 const { isValidEmail } = require('./utils/validation');
 const { createErrorResponse, ErrorMessages } = require('./utils/errors');
 
 exports.handler = async (event, context) => {
   const requestOrigin = event.headers.origin || event.headers.Origin || '';
   const corsHeaders = getCorsHeaders(requestOrigin, ['POST', 'OPTIONS']);
-  
+
   // Handle CORS preflight
   const preflightResponse = handleCorsPreflightRequest(event, ['POST', 'OPTIONS']);
   if (preflightResponse) {
@@ -22,8 +23,8 @@ exports.handler = async (event, context) => {
     return createErrorResponse(405, ErrorMessages.METHOD_NOT_ALLOWED, corsHeaders);
   }
 
-  // Validate Supabase configuration
-  const configValidation = validateSupabaseConfig();
+  // Validate Supabase configuration (including SERVICE_KEY since we write to users table)
+  const configValidation = validateServiceKeyConfig();
   if (!configValidation.isValid) {
     return createErrorResponse(500, ErrorMessages.CONFIGURATION_ERROR, corsHeaders);
   }
@@ -32,7 +33,7 @@ exports.handler = async (event, context) => {
 
   try {
     const { email, username, full_name } = JSON.parse(event.body);
-    
+
     // Validate email format
     if (!isValidEmail(email)) {
       return createErrorResponse(400, ErrorMessages.INVALID_EMAIL, corsHeaders);
@@ -65,10 +66,10 @@ exports.handler = async (event, context) => {
       is_active: true
     };
 
-    // Create user
+    // Create user with service key (required for writing to users table)
     const response = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
       method: 'POST',
-      headers: getSupabaseHeaders(),
+      headers: getSupabaseHeaders(true),
       body: JSON.stringify(userData)
     });
 

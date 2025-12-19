@@ -1,6 +1,14 @@
 /**
  * Netlify Function for User Login
  * Replaces Flask /api/auth/login endpoint
+ * 
+ * SECURITY NOTE: This is a simplified email-lookup authentication for demo purposes.
+ * It does NOT verify passwords - it only checks if a user with this email exists.
+ * 
+ * For production use, implement one of:
+ * 1. Supabase Auth (handles password hashing, sessions, magic links)
+ * 2. OAuth providers (Google, GitHub, etc.)
+ * 3. Custom password hashing with bcrypt + JWT tokens
  */
 
 const { getCorsHeaders, handleCorsPreflightRequest } = require('./utils/cors');
@@ -11,7 +19,7 @@ const { createErrorResponse, ErrorMessages } = require('./utils/errors');
 exports.handler = async (event, context) => {
   const requestOrigin = event.headers.origin || event.headers.Origin || '';
   const corsHeaders = getCorsHeaders(requestOrigin, ['POST', 'OPTIONS']);
-  
+
   // Handle CORS preflight
   const preflightResponse = handleCorsPreflightRequest(event, ['POST', 'OPTIONS']);
   if (preflightResponse) {
@@ -32,7 +40,7 @@ exports.handler = async (event, context) => {
 
   try {
     const { email } = JSON.parse(event.body);
-    
+
     // Validate email format
     if (!isValidEmail(email)) {
       return createErrorResponse(400, ErrorMessages.INVALID_EMAIL, corsHeaders);
@@ -49,7 +57,7 @@ exports.handler = async (event, context) => {
     }
 
     const users = await response.json();
-    
+
     if (users.length === 0) {
       return createErrorResponse(404, ErrorMessages.USER_NOT_FOUND, corsHeaders);
     }

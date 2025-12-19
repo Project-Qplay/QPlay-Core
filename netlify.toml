@@ -10,13 +10,9 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-# CORS headers for API functions
-[[headers]]
-  for = "/.netlify/functions/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
+# NOTE: Functions handle CORS themselves in utils/cors.js with proper origin validation
+# Do NOT add global [[headers]] with Access-Control-Allow-Origin: "*" here
+# as it would override the per-function CORS restrictions
 
 # API redirects to Netlify Functions
 [[redirects]]

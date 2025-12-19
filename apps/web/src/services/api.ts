@@ -81,11 +81,14 @@ class ApiService {
   }
 
   // Authentication API calls (Netlify Functions)
-  // Note: Current backend uses user-based sessions without JWT tokens
-  async signIn(email: string, password: string): Promise<SignInResponse> {
+  // NOTE: Current backend uses simplified email-lookup auth (no password verification)
+  // For production, use Supabase Auth, OAuth, or implement password hashing
+  async signIn(email: string, _password?: string): Promise<SignInResponse> {
+    // Password parameter is unused - backend only does email lookup
+    // This is intentional for demo purposes
     const response = await this.request('/auth-login', {
       method: 'POST',
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email })
     }) as AuthResponse;
 
     // Backend returns { success, user } without access_token
