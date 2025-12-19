@@ -10,11 +10,21 @@ const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || (
     : '/.netlify/functions' // Production Netlify Functions
 );
 
+// Response from auth functions (Netlify Functions style)
+interface AuthResponse {
+  success: boolean;
+  message?: string;
+  user?: any;
+  error?: string;
+}
+
+// Legacy type for compatibility (access_token is optional now)
 interface SignInResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
+  access_token?: string;
+  token_type?: string;
+  expires_in?: number;
   user: any;
+  success?: boolean;
 }
 
 interface SignUpData {
@@ -71,32 +81,40 @@ class ApiService {
   }
 
   // Authentication API calls (Netlify Functions)
+  // Note: Current backend uses user-based sessions without JWT tokens
   async signIn(email: string, password: string): Promise<SignInResponse> {
     const response = await this.request('/auth-login', {
       method: 'POST',
       body: JSON.stringify({ email, password })
-    });
+    }) as AuthResponse;
 
-    // Store token automatically
-    if (response.access_token) {
-      this.setAuthToken(response.access_token);
+    // Backend returns { success, user } without access_token
+    // Store user ID as simple session identifier if needed
+    if (response.success && response.user?.id) {
+      this.setAuthToken(response.user.id);
     }
 
-    return response;
+    return {
+      user: response.user,
+      success: response.success
+    };
   }
 
   async signUp(data: SignUpData): Promise<SignInResponse> {
     const response = await this.request('/auth-signup', {
       method: 'POST',
       body: JSON.stringify(data)
-    });
+    }) as AuthResponse;
 
-    // Store token automatically
-    if (response.access_token) {
-      this.setAuthToken(response.access_token);
+    // Backend returns { success, user } without access_token
+    if (response.success && response.user?.id) {
+      this.setAuthToken(response.user.id);
     }
 
-    return response;
+    return {
+      user: response.user,
+      success: response.success
+    };
   }
 
   async getCurrentUser() {
