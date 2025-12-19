@@ -11,7 +11,7 @@ const { createErrorResponse, ErrorMessages } = require('./utils/errors');
 exports.handler = async (event, context) => {
   const requestOrigin = event.headers.origin || event.headers.Origin || '';
   const corsHeaders = getCorsHeaders(requestOrigin, ['POST', 'OPTIONS']);
-  
+
   // Handle CORS preflight
   const preflightResponse = handleCorsPreflightRequest(event, ['POST', 'OPTIONS']);
   if (preflightResponse) {
@@ -37,17 +37,22 @@ exports.handler = async (event, context) => {
 
     // If user_id not provided, try to get from session
     if (!resolvedUserId && session_id) {
-      // Validate session_id format
+      // Validate session_id format first (only allows alphanumeric, underscore, hyphen)
+      // This prevents any injection attacks as special characters are rejected
       if (!isValidSessionId(session_id)) {
         return createErrorResponse(400, ErrorMessages.VALIDATION_ERROR, corsHeaders);
       }
 
+      // SECURITY: session_id is validated above - only [a-zA-Z0-9_-] allowed
+      // Safe to use in Supabase REST API URL (not SQL - this is a URL parameter)
+      const validatedSessionId = encodeURIComponent(session_id);
+
       try {
         const sessionResponse = await fetch(
-          `${SUPABASE_URL}/rest/v1/game_sessions?id=eq.${encodeURIComponent(session_id)}&select=user_id`,
+          `${SUPABASE_URL}/rest/v1/game_sessions?id=eq.${validatedSessionId}&select=user_id`,
           { headers: getSupabaseHeaders() }
         );
-        
+
         if (sessionResponse.ok) {
           const sessions = await sessionResponse.json();
           if (sessions.length > 0) {
