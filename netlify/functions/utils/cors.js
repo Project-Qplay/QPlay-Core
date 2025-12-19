@@ -16,9 +16,8 @@ const getAllowedOrigins = () => {
     'http://localhost:8888',
     'https://qplay.netlify.app',
     'https://quantum-escape.netlify.app',
-    'https://quantumquest.netlify.app',
-    'https://dev-quantumquest.netlify.app',
-    'https://dev--quantumquest.netlify.app'  // Netlify branch deploy format
+    'https://quantumescape.netlify.app',
+    'https://dev--quantumescape.netlify.app'  // Netlify branch deploy format
   ];
 
   // Add any site URL from Netlify
