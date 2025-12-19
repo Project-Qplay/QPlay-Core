@@ -8,20 +8,21 @@ const getAllowedOrigins = () => {
   if (process.env.ALLOWED_ORIGINS) {
     return process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
   }
-  
+
   // Default allowed origins for development and production
   const defaults = [
     'http://localhost:3000',
     'http://localhost:5173',
     'http://localhost:8888',
-    'https://qplay.netlify.app'
+    'https://qplay.netlify.app',
+    'https://quantum-escape.netlify.app'
   ];
-  
+
   // Add any site URL from Netlify
   if (process.env.URL) {
     defaults.push(process.env.URL);
   }
-  
+
   return defaults;
 };
 
@@ -33,23 +34,23 @@ const getAllowedOrigins = () => {
  */
 const getCorsHeaders = (requestOrigin, methods = ['GET', 'POST', 'OPTIONS']) => {
   const allowedOrigins = getAllowedOrigins();
-  
+
   // Check if the request origin is in the allowed list
   // If not allowed, return null origin to block the request
-  const origin = allowedOrigins.includes(requestOrigin) 
-    ? requestOrigin 
+  const origin = allowedOrigins.includes(requestOrigin)
+    ? requestOrigin
     : null;
-  
+
   return origin
     ? {
-        'Access-Control-Allow-Origin': origin,
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': methods.join(', '),
-        'Access-Control-Allow-Credentials': 'true'
-      }
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Methods': methods.join(', '),
+      'Access-Control-Allow-Credentials': 'true'
+    }
     : {
-        'Access-Control-Allow-Methods': methods.join(', ')
-      };
+      'Access-Control-Allow-Methods': methods.join(', ')
+    };
 };
 
 /**

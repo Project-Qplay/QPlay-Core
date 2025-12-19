@@ -25,13 +25,20 @@ exports.handler = async (event, context) => {
   }
 
   const SUPABASE_URL = getSupabaseUrl();
-  const path = event.path;
   const method = event.httpMethod;
 
+  // Only accept POST requests
+  if (method !== 'POST') {
+    return createErrorResponse(405, ErrorMessages.METHOD_NOT_ALLOWED, corsHeaders);
+  }
+
   try {
+    const body = JSON.parse(event.body);
+    const mode = body.mode || 'start'; // Default to 'start' for backward compatibility
+
     // Start game session
-    if (path.includes('/game/start') && method === 'POST') {
-      const { user_id, difficulty = 'easy' } = JSON.parse(event.body);
+    if (mode === 'start') {
+      const { user_id, difficulty = 'easy' } = body;
 
       // Validate user_id if provided
       if (user_id && !isValidUserId(user_id)) {
@@ -81,7 +88,7 @@ exports.handler = async (event, context) => {
     }
 
     // Complete game session
-    if (path.includes('/game/complete') && method === 'POST') {
+    if (mode === 'complete') {
       const {
         user_id,
         session_id,
@@ -93,7 +100,7 @@ exports.handler = async (event, context) => {
         current_games_completed = 0,
         current_total_score = 0,
         current_total_playtime = 0
-      } = JSON.parse(event.body);
+      } = body;
 
       // Validate user_id
       if (user_id && !isValidUserId(user_id)) {
@@ -172,14 +179,14 @@ exports.handler = async (event, context) => {
     }
 
     // Save game progress
-    if (path.includes('/game/save-progress') && method === 'POST') {
+    if (mode === 'save-progress') {
       const {
         session_id,
         current_room,
         room_times = {},
         room_attempts = {},
         room_scores = {}
-      } = JSON.parse(event.body);
+      } = body;
 
       if (session_id && isValidSessionId(session_id)) {
         try {
@@ -208,7 +215,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    return createErrorResponse(404, ErrorMessages.NOT_FOUND, corsHeaders);
+    return createErrorResponse(400, 'Invalid mode. Use: start, complete, or save-progress', corsHeaders);
 
   } catch (error) {
     console.error('Game session error:', error);

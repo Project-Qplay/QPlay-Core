@@ -45,7 +45,7 @@ class ApiService {
 
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     const defaultOptions: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -57,12 +57,12 @@ class ApiService {
 
     try {
       const response = await fetch(url, defaultOptions);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error(`API request failed: ${endpoint}`, error);
@@ -76,12 +76,12 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ email, password })
     });
-    
+
     // Store token automatically
     if (response.access_token) {
       this.setAuthToken(response.access_token);
     }
-    
+
     return response;
   }
 
@@ -90,12 +90,12 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(data)
     });
-    
+
     // Store token automatically
     if (response.access_token) {
       this.setAuthToken(response.access_token);
     }
-    
+
     return response;
   }
 
@@ -130,14 +130,14 @@ class ApiService {
   async getSpeedLeaderboard(limit: number = 50, difficulty?: string) {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (difficulty) params.append('difficulty', difficulty);
-    
+
     return this.request(`/leaderboard?type=speed&${params}`);
   }
 
   async getScoreLeaderboard(limit: number = 50, difficulty?: string) {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (difficulty) params.append('difficulty', difficulty);
-    
+
     return this.request(`/leaderboard?type=score&${params}`);
   }
 
@@ -162,6 +162,7 @@ class ApiService {
     return this.request('/game-session', {
       method: 'POST',
       body: JSON.stringify({
+        mode: 'start',
         user_id: userId,
         difficulty: difficulty
       })
@@ -172,6 +173,7 @@ class ApiService {
     return this.request('/game-session', {
       method: 'POST',
       body: JSON.stringify({
+        mode: 'save-progress',
         session_id: sessionId,
         current_room: currentRoom,
         room_times: roomTimes,
@@ -185,6 +187,7 @@ class ApiService {
     return this.request('/game-session', {
       method: 'POST',
       body: JSON.stringify({
+        mode: 'complete',
         session_id: sessionId,
         user_id: userId,
         completion_time: completionTime,
@@ -203,17 +206,17 @@ class ApiService {
       console.warn('User ID required to fetch game sessions');
       return [];
     }
-    
+
     try {
       // Direct Supabase REST API call to get user's sessions
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
+
       if (!supabaseUrl || !supabaseKey) {
         console.warn('Supabase environment variables not configured');
         return [];
       }
-      
+
       const response = await fetch(`${supabaseUrl}/rest/v1/game_sessions?user_id=eq.${userId}&order=started_at.desc`, {
         headers: {
           'apikey': supabaseKey,
@@ -221,7 +224,7 @@ class ApiService {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         return await response.json();
       } else {
