@@ -50,7 +50,7 @@ npm run install:all
 2. Installs backend deps in `netlify/functions/` (~10MB)
 3. Total: ~350MB of dependencies
 
-### **4. Setup Environment**
+### **4. Set Up Environment**
 ```powershell
 # Copy example environment file
 cp .env.example .env
